@@ -3,7 +3,6 @@
 A minimal patched copy of [**STAR**](https://github.com/alexdobin/STAR)
 (v2.7.11b base) that builds and runs natively on **Linux, macOS (Intel + Apple
 Silicon), and Windows (x64 + ARM64)**, with a **bundled modern htslib**.
-Added support for streaming gzipped files using zlib.
 
 For STAR's documentation, options, and canonical source, see the upstream
 repository: <https://github.com/alexdobin/STAR>. Upstream appears unmaintained,
@@ -23,99 +22,138 @@ Cygwin-style “MSYS2 MSYS” shell.
 
 | Platform | Shell / prompt | CC / CXX | `CXXFLAGS_SIMD` | C++ runtime |
 |---|---|---|---|---|
-| Linux x64 | your terminal | `gcc` / `g++` | `-mavx2` (or `-msse4.1`) | libstdc++ |
+| Linux x64 | your terminal | `gcc` / `g++` | `-mavx2` | libstdc++ |
 | Linux ARM64 | your terminal | `gcc` / `g++` | *(empty → NEON)* | libstdc++ |
-| macOS Intel | Terminal | `gcc-14` / `g++-14` (Homebrew) | `-mavx2` (or `-msse4.1`) | libstdc++ |
-| macOS Apple Silicon | Terminal | `gcc-14` / `g++-14` (Homebrew) | *(empty → NEON)* | libstdc++ |
-| Windows x64 | **MSYS2 UCRT64** | `gcc` / `g++` | `-mavx2` (or `-msse4.1`) | libstdc++ |
+| macOS Intel | Terminal | Homebrew GCC (auto-detected `$CC`/`$CXX`) | `-mavx2` | libstdc++ |
+| macOS Apple Silicon | Terminal | Homebrew GCC (auto-detected `$CC`/`$CXX`) | *(empty → NEON)* | libstdc++ |
+| Windows x64 | **MSYS2 UCRT64** | `gcc` / `g++` | `-mavx2` | libstdc++ |
 | Windows ARM64 | **MSYS2 CLANGARM64** | `clang` / `clang++` | *(empty → SIMDe/NEON)* | libc++ |
 
 Homebrew **GCC** is recommended on macOS (bundles OpenMP; uses libstdc++, avoiding
 the Apple-clang `-fopenmp` hassle). Apple clang works too — the libc++ fix below
 covers it — but you must supply OpenMP via `libomp`.
 
-### Prerequisites
+Each platform section below is **self-contained**: install deps, build the
+bundled htslib, then build STAR — all run from **this directory** (the one with
+`Makefile` and `htslib/`). libdeflate is used everywhere (faster BGZF). Confirm
+the result with the shared *Verify* step at the end.
 
-**Linux (Debian/Ubuntu)**
-```bash
-sudo apt install build-essential make zlib1g-dev libdeflate-dev
-```
-
-**macOS**
-```bash
-brew install gcc libdeflate      # provides g++-14 (check: ls $(brew --prefix)/bin/g++-*)
-```
-
-**Windows — MSYS2** — install from <https://www.msys2.org>, then open the matching
-**colored** shell from the Start menu (**“MSYS2 CLANGARM64”** for ARM64,
-**“MSYS2 UCRT64”** for x64; not “MSYS2 MSYS”). Install deps (ARM64 names; for x64
-swap the prefix `mingw-w64-clang-aarch64-` → `mingw-w64-ucrt-x86_64-`):
-```bash
-pacman -S --needed \
-  mingw-w64-clang-aarch64-clang \
-  mingw-w64-clang-aarch64-make \
-  mingw-w64-clang-aarch64-zlib \
-  mingw-w64-clang-aarch64-libdeflate \
-  mingw-w64-clang-aarch64-libsystre \
-  mingw-w64-clang-aarch64-gettext \
-  mingw-w64-clang-aarch64-libiconv
-```
-`libsystre` supplies `<regex.h>` (+ `libregex`/`libtre`) for htslib's `hts_expr.c`;
-`gettext`/`libiconv` complete the static regex link chain. `parametersDefault.xxd`
-is committed, so no `xxd` is needed.
-
-### 1. Build the bundled htslib (all platforms)
+### Linux — x86-64
 
 ```bash
+sudo apt install build-essential make zlib1g-dev libdeflate-dev     # Debian/Ubuntu
+
 cd htslib
-./configure --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins --with-libdeflate
-make lib-static          # -> htslib/libhts.a
+./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static
 cd ..
-```
-On Windows pass the compiler explicitly: `CC=clang ./configure …` (CLANGARM64) or
-`CC=gcc ./configure …` (UCRT64).
 
-### 2. Build STAR
-
-**Linux**
-```bash
 make STAR CXXFLAGS_SIMD=-mavx2 CXXFLAGSextra="-DSTAR_GZ_INPUT" \
   LDFLAGS_shared="-pthread htslib/libhts.a -lz -ldeflate"
-# ARM64: CXXFLAGS_SIMD=   (empty)
 ```
 
-**macOS** (Homebrew GCC; output binary is `STAR`)
+### Linux — ARM64 (aarch64)
+
+Same as x86-64, only the SIMD flag differs (opal's bundled SIMDe maps AVX2 → NEON):
+
 ```bash
-make STARforMacStatic CC=gcc-14 CXX=g++-14 CXXFLAGS_SIMD=-mavx2 \
-  CXXFLAGSextra="-DSTAR_GZ_INPUT" LDFLAGSextra="-ldeflate"
-# Apple Silicon: CXXFLAGS_SIMD=   (empty)
+sudo apt install build-essential make zlib1g-dev libdeflate-dev
+
+cd htslib
+./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static
+cd ..
+
+make STAR CXXFLAGS_SIMD= CXXFLAGSextra="-DSTAR_GZ_INPUT" \
+  LDFLAGS_shared="-pthread htslib/libhts.a -lz -ldeflate"
 ```
 
-**Windows x64** — in the **MSYS2 UCRT64** shell
+### macOS — Apple Silicon (arm64)
+
+Uses Homebrew GCC (bundles OpenMP, uses libstdc++). `$CC`/`$CXX` are detected so no
+GCC version is hardcoded; libdeflate is linked statically by path so the binary is
+self-contained. The `CPPFLAGS`/`LDFLAGS` point `configure` at Homebrew
+(`configure` doesn't search `/opt/homebrew` on its own).
+
 ```bash
-mingw32-make STAR CXXFLAGS_SIMD=-msse4.1 CC=gcc CXX=g++ CXXFLAGSextra="-DSTAR_GZ_INPUT" \
+brew install gcc libdeflate
+export CC=$(ls "$(brew --prefix gcc)"/bin/gcc-[0-9]* | sort -V | tail -1)
+export CXX=$(ls "$(brew --prefix gcc)"/bin/g++-[0-9]* | sort -V | tail -1)
+
+cd htslib
+CC="$CC" CPPFLAGS="-I$(brew --prefix)/include" LDFLAGS="-L$(brew --prefix)/lib" \
+  ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static CC="$CC"
+cd ..
+
+make STARforMacStatic CC="$CC" CXX="$CXX" CXXFLAGS_SIMD= \
+  CXXFLAGSextra="-DSTAR_GZ_INPUT" LDFLAGSextra="$(brew --prefix)/lib/libdeflate.a"
+```
+
+### macOS — Intel (x86-64)
+
+Same as Apple Silicon, only the SIMD flag differs:
+
+```bash
+brew install gcc libdeflate
+export CC=$(ls "$(brew --prefix gcc)"/bin/gcc-[0-9]* | sort -V | tail -1)
+export CXX=$(ls "$(brew --prefix gcc)"/bin/g++-[0-9]* | sort -V | tail -1)
+
+cd htslib
+CC="$CC" CPPFLAGS="-I$(brew --prefix)/include" LDFLAGS="-L$(brew --prefix)/lib" \
+  ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static CC="$CC"
+cd ..
+
+make STARforMacStatic CC="$CC" CXX="$CXX" CXXFLAGS_SIMD=-mavx2 \
+  CXXFLAGSextra="-DSTAR_GZ_INPUT" LDFLAGSextra="$(brew --prefix)/lib/libdeflate.a"
+```
+
+### Windows — x64  (MSYS2 **UCRT64** shell)
+
+Install MSYS2 (<https://www.msys2.org>) and open the **"MSYS2 UCRT64"** shell
+(*not* "MSYS2 MSYS"). The build tool is `mingw32-make`.
+
+```bash
+pacman -S --needed \
+  mingw-w64-ucrt-x86_64-gcc  mingw-w64-ucrt-x86_64-make \
+  mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-libdeflate \
+  mingw-w64-ucrt-x86_64-libsystre mingw-w64-ucrt-x86_64-gettext mingw-w64-ucrt-x86_64-libiconv
+
+cd htslib
+CC=gcc ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static
+cd ..
+
+mingw32-make STAR CXXFLAGS_SIMD=-mavx2 CC=gcc CXX=g++ CXXFLAGSextra="-DSTAR_GZ_INPUT" \
   LDFLAGS_shared="-static -static-libgcc -static-libstdc++ -pthread htslib/libhts.a -lz -ldeflate -lregex -ltre -lintl -liconv -lws2_32 -lpthread"
 ```
+For pre-AVX2 hardware, build with `CXXFLAGS_SIMD=-msse4.1` instead.
 
-**Windows ARM64** — in the **MSYS2 CLANGARM64** shell
+### Windows — ARM64  (MSYS2 **CLANGARM64** shell)
+
+Open the **"MSYS2 CLANGARM64"** shell.
+
 ```bash
+pacman -S --needed \
+  mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-make \
+  mingw-w64-clang-aarch64-zlib  mingw-w64-clang-aarch64-libdeflate \
+  mingw-w64-clang-aarch64-libsystre mingw-w64-clang-aarch64-gettext mingw-w64-clang-aarch64-libiconv
+
+cd htslib
+CC=clang ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
+make lib-static
+cd ..
+
 mingw32-make STAR CXXFLAGS_SIMD= CC=clang CXX=clang++ CXXFLAGSextra="-DSTAR_GZ_INPUT" \
   LDFLAGS_shared="-static -pthread htslib/libhts.a -lz -ldeflate -lregex -ltre -lintl -liconv -lws2_32 -lpthread"
 ```
 
-Notes:
-- `CXXFLAGS_SIMD=` empty on ARM (opal's bundled SIMDe maps AVX2→NEON); `-msse4.1`
-  is the widest-compatible x86 target (also runs under Windows-on-ARM x64
-  emulation), `-mavx2` is faster on AVX2-capable hosts.
-- `-DSTAR_GZ_INPUT` enables reading gzipped **and** plain FASTQ directly (no
-  `--readFilesCommand`).
-- The Windows `LDFLAGS_shared=` override replaces the Makefile's GNU-ld
-  `-Bstatic/-Bdynamic` (which clang misreads) and links `htslib/libhts.a` plus its
-  transitive deps directly. The regex chain + `-lws2_32` are Windows-only.
-- `-static…` yields a self-contained binary (verify with `ldd` / `otool -L`); drop
-  `-static` for a dynamically-linked build.
+On Windows, `libsystre`/`gettext`/`libiconv` supply the POSIX regex chain htslib's
+`hts_expr.c` needs, and `-lws2_32` is Winsock (used by htslib's file layer).
+`parametersDefault.xxd` is committed, so no `xxd` is required.
 
-### 3. Verify
+### Verify (any platform)
 
 ```bash
 mkdir idx
@@ -126,7 +164,8 @@ mkdir idx
 grep "input reads\|Uniquely mapped" aln_Log.final.out    # expect >0 mapped
 ```
 (`--genomeSAindexNbases` = min(14, log2(genomeLength)/2 − 1): ~11 for a small test
-genome, 14 for full human.)
+genome, 14 for full human. The binary is self-contained — check with `ldd`
+(Linux/Windows) or `otool -L` (macOS); only system libraries should appear.)
 
 ### Known limitations on Windows
 - `--readFilesCommand <arbitrary cmd>` is unsupported (no `fork`/named pipes on
