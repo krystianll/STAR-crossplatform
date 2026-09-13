@@ -3,6 +3,7 @@
 A minimal patched copy of [**STAR**](https://github.com/alexdobin/STAR)
 (v2.7.11b base) that builds and runs natively on **Linux, macOS (Intel + Apple
 Silicon), and Windows (x64 + ARM64)**, with a **bundled modern htslib**.
+Added support for streaming gzipped files using zlib.
 
 For STAR's documentation, options, and canonical source, see the upstream
 repository: <https://github.com/alexdobin/STAR>. Upstream appears unmaintained,
