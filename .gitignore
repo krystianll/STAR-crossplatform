@@ -17,6 +17,10 @@ htslib/config.h
 htslib/config.mk
 htslib/config.status
 htslib/config.log
+htslib/config_vars.h
+htslib/version.h
+htslib/htscodecs.mk
+htslib/htslib.pc.tmp
 htslib/**/*.o
 
 # In-tree run outputs (if you test here)
@@ -26,3 +30,6 @@ Log.final.out
 Aligned.out.*
 _STARtmp/
 idx/
+
+# macOS Finder metadata
+.DS_Store
