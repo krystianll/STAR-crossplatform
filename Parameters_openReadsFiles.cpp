@@ -5,6 +5,33 @@
 void Parameters::openReadsFiles() 
 {
     if (readFilesCommandString=="") {//read from file
+#ifdef STAR_GZ_INPUT
+        // GzIfstream path: open (and transparently concatenate + decompress) the
+        // full split file list per mate. Handles plain OR .gz, one or many
+        // comma-separated files, on every platform - no cat/fork/fifo. Files are
+        // stat()ed up front so a missing later file gives a clean error instead
+        // of a silent truncation mid-stream.
+        for (uint imate=0; imate<readFilesNames.size(); imate++) {
+            readFilesCommandPID[imate]=0;//no command process IDs
+            if ( inOut->readIn[imate].is_open() ) inOut->readIn[imate].close();
+
+            for (uint32 ifile=0; ifile<readFilesNames[imate].size(); ifile++) {
+                struct stat st1;
+                if ( stat(readFilesNames[imate][ifile].c_str(), &st1)!=0 ) {
+                    ostringstream errOut;
+                    errOut <<"EXITING because of fatal input ERROR: could not open readFilesIn=" << readFilesNames[imate][ifile] <<"\n";
+                    exitWithError(errOut.str(), std::cerr, inOut->logMain, EXIT_CODE_PARAMETER, *this);
+                };
+            };
+
+            inOut->readIn[imate].openMulti(readFilesNames[imate]); //open the whole list; exit if the first file failed
+            if (inOut->readIn[imate].fail()) {
+                ostringstream errOut;
+                errOut <<"EXITING because of fatal input ERROR: could not open readFilesIn=" << readFilesNames[imate][0] <<"\n";
+                exitWithError(errOut.str(), std::cerr, inOut->logMain, EXIT_CODE_PARAMETER, *this);
+            };
+        };
+#else
         for (uint ii=0;ii<readFilesIn.size();ii++) {//open readIn files
             readFilesCommandPID[ii]=0;//no command process IDs
             if ( inOut->readIn[ii].is_open() ) inOut->readIn[ii].close();
@@ -18,6 +45,7 @@ void Parameters::openReadsFiles()
                 exitWithError(errOut.str(), std::cerr, inOut->logMain, EXIT_CODE_PARAMETER, *this);
             };
         };
+#endif
     } else {//create fifo files, execute pre-processing command
 
          vector<string> readsCommandFileName;

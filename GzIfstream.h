@@ -6,35 +6,66 @@
 // only (STAR reads read-files sequentially; it never seeks them). Lets the
 // default input path handle plain OR .gz FASTQ on every platform, streaming,
 // with no temp file and no external process. See WINDOWS_BUILD.md §12.
+//
+// Also concatenates a *list* of files (STAR's comma-separated --readFilesIn),
+// decompressing each in turn. This is done here (not via an external "cat" into
+// a fifo) because zlib only auto-detects gzip from the first bytes of a stream:
+// piping "FILE 0\n<gz1>FILE 1\n<gz2>" through one gzopen would start in
+// passthrough mode and never inflate. Opening each file with its own gzopen
+// inflates every member and works on all platforms (no fork/fifo needed).
 
 #include <istream>
 #include <streambuf>
 #include <ios>
+#include <string>
+#include <vector>
 #include <zlib.h>
 
 class GzStreambuf : public std::streambuf {
     gzFile gz_;
+    std::vector<std::string> paths_;    // remaining files to concatenate
+    size_t idx_;                        // next file to open in paths_
     static const int BUFSZ = 1 << 16;   // 64 KiB read chunk
     char buf_[BUFSZ];
+
+    // Open the next file in paths_ into gz_. Returns false when the list is
+    // exhausted or a file cannot be opened (caller pre-validates paths).
+    bool openNext() {
+        while (idx_ < paths_.size()) {
+            gz_ = gzopen(paths_[idx_++].c_str(), "rb");
+            if (!gz_) return false;      // rare: openReadsFiles stat()s first
+            gzbuffer(gz_, 1 << 20);      // larger internal zlib buffer (perf)
+            setg(buf_, buf_, buf_);      // empty get area -> underflow on read
+            return true;
+        }
+        return false;
+    }
 public:
-    GzStreambuf() : gz_(0) {}
+    GzStreambuf() : gz_(0), idx_(0) {}
     ~GzStreambuf() { close(); }
     GzStreambuf(const GzStreambuf&) = delete;
     GzStreambuf& operator=(const GzStreambuf&) = delete;
 
     bool is_open() const { return gz_ != 0; }
 
+    // Open a single file (plain or .gz).
     bool open(const char* path) {
+        std::vector<std::string> one(1, std::string(path));
+        return openList(one);
+    }
+
+    // Open a list of files, concatenated and each decompressed as needed.
+    bool openList(const std::vector<std::string>& paths) {
         close();
-        gz_ = gzopen(path, "rb");        // gzread() auto-detects: .gz -> inflate, else passthrough
-        if (!gz_) return false;
-        gzbuffer(gz_, 1 << 20);          // larger internal zlib buffer (perf; ignore failure)
-        setg(buf_, buf_, buf_);          // empty get area -> underflow on first read
-        return true;
+        paths_ = paths;
+        idx_ = 0;
+        return openNext();
     }
 
     void close() {
         if (gz_) { gzclose(gz_); gz_ = 0; }
+        paths_.clear();
+        idx_ = 0;
         setg(0, 0, 0);
     }
 
@@ -43,8 +74,14 @@ protected:
         if (!gz_) return traits_type::eof();
         if (gptr() < egptr())
             return traits_type::to_int_type(*gptr());
-        int n = gzread(gz_, buf_, BUFSZ);
-        if (n <= 0) return traits_type::eof();   // 0 = EOF, <0 = error -> treated as EOF
+        int n;
+        for (;;) {
+            n = gzread(gz_, buf_, BUFSZ);
+            if (n > 0) break;                 // got data
+            // n==0 (EOF) or n<0 (error): current file done -> next file, if any
+            gzclose(gz_); gz_ = 0;
+            if (!openNext()) return traits_type::eof();
+        }
         setg(buf_, buf_, buf_ + n);
         return traits_type::to_int_type(*gptr());
     }
@@ -67,6 +104,14 @@ public:
         else { setstate(std::ios_base::failbit); }
     }
     void open(const std::string& path) { open(path.c_str()); }
+
+    // Open a list of files (STAR's comma-separated --readFilesIn), concatenated
+    // and each decompressed transparently.
+    void openMulti(const std::vector<std::string>& paths) {
+        if (sb_.openList(paths)) { clear(); }
+        else { setstate(std::ios_base::failbit); }
+    }
+
     bool is_open() const { return sb_.is_open(); }
     void close() { sb_.close(); }
 };

@@ -141,12 +141,19 @@ void Parameters::readFilesInit()
     
     readFilesCommandString="";
     if (readFilesCommand.at(0)=="-") {
+#ifdef STAR_GZ_INPUT
+        // GzIfstream reads plain/gz directly and concatenates multiple
+        // comma-separated files itself (see openReadsFiles), so the default
+        // (no-command) case needs no external "cat"/fork/fifo on any platform.
+        // Leaving readFilesCommandString empty routes through the GzIfstream path.
+#else
         if (readFilesN>1)
             readFilesCommandString="cat   ";//concatenate multiple files
+#endif
     } else {
-        for (uint ii=0; ii<readFilesCommand.size(); ii++) 
+        for (uint ii=0; ii<readFilesCommand.size(); ii++)
             readFilesCommandString+=readFilesCommand.at(ii)+"   "; //concatenate into one string
-    };    
+    };
     
     if (readFilesTypeN==1) {
         readNends=readFilesNames.size(); //for now the number of mates is defined by the number of input files
