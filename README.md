@@ -199,3 +199,25 @@ as upstream except for the libc++ fix (a genuine cross-platform correctness bug)
 | `ReadAlignChunk_processChunks.cpp` | Widen `fastqReadOneLine(ifstream&, …)` to `istream&` | `readIn` is now a base-`istream` (`GzIfstream`); every other read-file call site was unchanged. |
 | `Parameters_readFilesInit.cpp` | Under `#ifdef STAR_GZ_INPUT`, keep `readFilesCommandString` empty in the default (`--readFilesCommand -`) case even for multiple files | Multiple comma-separated files are concatenated and decompressed by `GzIfstream` itself, so no external `cat`/fifo is used (works on Windows too, which has no `fork`/fifo). |
 | `Parameters_openReadsFiles.cpp` | Under `#ifdef STAR_GZ_INPUT`, the empty-command branch `stat()`s each split file then opens the whole per-mate list via `readIn[imate].openMulti(readFilesNames[imate])` | Streams/decompresses every comma-separated file through one `GzIfstream`. (`readFilesIndex` stays 0 across the list, so a per-file `--outSAMattrRGline` read group is not applied on this path; a single RG for all files works.) |
+
+---
+
+## Redistribution & licensing
+
+The recipes above produce a **static** binary — convenient for your own use.
+Sharing this recipe is not distribution, but **shipping a compiled binary is**,
+and that triggers the license terms of everything linked into it.
+
+- **Own use:** the static binary is fine as-is.
+- **Redistributing the binary:** bundle the license texts + copyright notices of
+  everything compiled in — STAR (MIT), the bundled htslib/htscodecs (MIT/BSD),
+  zlib, libdeflate. On Windows the POSIX-regex chain statically links
+  **gettext/libiconv (LGPL)**; the LGPL relink clause is most easily satisfied by
+  building **without `-static`** so those become replaceable DLLs, then bundling
+  every DLL's license.
+- **Turnkey option:** the **ngs-tools** Windows installer builds STAR / samtools /
+  Trim Galore dynamically (one shared `hts-3.dll` + runtime DLLs), collects every
+  component's license, and produces a component-selectable installer with PATH
+  registration and uninstall.
+
+STAR itself is **MIT**; the bundled htslib is MIT/BSD.
