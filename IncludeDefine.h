@@ -78,6 +78,19 @@ using namespace std;
       buf->f_bsize=1; buf->f_frsize=1; buf->f_blocks=total; buf->f_bfree=freeTotal; buf->f_bavail=avail;
       return 0;
   }
+  // Plain stat()/struct stat is 32-bit-limited on Windows (it aliases
+  // _stat64i32): it reports an error for any file >= 2 GiB even though the
+  // file is perfectly valid and readable - hit this for real via STAR's own
+  // readFilesIn pre-check (Parameters_openReadsFiles.cpp) and it applies
+  // equally to bamSortByCoordinate.cpp's BAM-bin size check. Redirect the
+  // whole codebase to the 64-bit variant: MinGW-w64 aliases struct __stat64
+  // to struct _stat64 (_mingw_stat64.h), so both "stat(...)" calls and
+  // "struct stat" declarations resolve consistently through this one name.
+  // Must come after <sys/stat.h> is included (above) so its real
+  // declarations are parsed under their real names first. POSIX stat() is
+  // 64-bit-safe already, so this is WIN32-only; sysRemoveDir.cpp's nftw()
+  // callback doesn't include this header, so it is unaffected.
+  #define stat _stat64
 #endif
 
 typedef int8_t int8;
