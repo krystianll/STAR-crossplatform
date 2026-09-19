@@ -3,6 +3,7 @@
 #if defined(_WIN32)
 #include <stdio.h>   // _fmode
 #include <fcntl.h>   // _O_BINARY
+#include <io.h>      // _setmode, _fileno
 #endif
 
 #include "IncludeDefine.h"
@@ -67,6 +68,11 @@ int main(int argInN, char *argIn[])
     // Default everything to binary: fixes the suffix-array corruption and keeps
     // text output LF-only. C++ fstreams without ios::binary honor _fmode on MinGW.
     _fmode = _O_BINARY;
+    // _fmode only affects files opened afterwards; the pre-opened std streams stay
+    // in text mode. Force them binary too, else --outStd SAM injects CRLF and
+    // --outStd BAM_* corrupts the BAM (0x0A -> 0x0D0A) when piped to stdout.
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stdin),  _O_BINARY);
 #endif
     // If no argument is given, or the first argument is either '-h' or '--help', run usage()
     if (argInN == 1)

@@ -1,4 +1,4 @@
-# STAR — patched, cross-platform build
+# STAR — patched, cross-platform build (work in progress)
 
 A minimal patched copy of [**STAR**](https://github.com/alexdobin/STAR)
 (v2.7.11b base) that builds and runs natively on **Linux, macOS (Intel + Apple
@@ -183,7 +183,7 @@ as upstream except for the libc++ fix (a genuine cross-platform correctness bug)
 
 | File | Change | Reason |
 |------|--------|--------|
-| `htslib/` | Replaced STAR's ancient bundled htslib with modern **htslib 1.24** (pristine release source) | The old bundle (unconditional `<sys/socket.h>`, `knetfile.c`) does not build on Windows; modern htslib is Windows-aware. |
+| `htslib/` | Replaced STAR's legacy bundled htslib with **htslib 1.24** | The old bundle (unconditional `<sys/socket.h>`, `knetfile.c`) does not build on Windows; modern htslib is Windows-aware. |
 | `IncludeDefine.h` | Guard `<sys/ipc.h>` / `<sys/shm.h>` / `<sys/mman.h>` under `#if !defined(_WIN32)` | Those SysV/mmap headers do not exist in the Windows/MinGW toolchain. |
 | `IncludeDefine.h` | Add `#include <pthread.h>` | STAR uses `pthread_mutex_t`; MinGW needs the explicit include (arrives transitively only on Linux). |
 | `IncludeDefine.h` | `#if defined(_WIN32)` shim block: 2-arg `mkdir` overload; `mkfifo`/`symlink`/`statvfs` via `_mkdir`/`CopyFileA`/`GetDiskFreeSpaceExA` (Win32 prototypes declared directly, avoiding `<windows.h>`) | MinGW's `mkdir` is 1-arg; `mkfifo`/`symlink`/`statvfs` are POSIX-only; `<windows.h>` `min`/`max` macros collide with STAR/libc++. |
@@ -192,9 +192,9 @@ as upstream except for the libc++ fix (a genuine cross-platform correctness bug)
 | `streamFuns.cpp` | Guard `#include <sys/statvfs.h>` under `#if !defined(_WIN32)` | No `<sys/statvfs.h>` on Windows (shim is in `IncludeDefine.h`). |
 | `Parameters_openReadsFiles.cpp` | `#if defined(_WIN32)` replaces the `vfork`/`execlp` block with a clean error | Native Windows has no `fork`/`exec`; gzip is handled internally instead. |
 | `Parameters_closeReadsFiles.cpp` | Guard `kill(pid, SIGKILL)` under `#if !defined(_WIN32)` | No POSIX `kill`/`SIGKILL` on Windows. |
-| `STAR.cpp` | On `_WIN32`, set `_fmode = _O_BINARY` at the start of `main()` (+ `<stdio.h>`/`<fcntl.h>`) | Windows text mode truncates binary genome/suffix-array files at the first `0x1A` byte (genomeGenerate failure) and writes CRLF into SAM/logs. |
+| `STAR.cpp` | On `_WIN32`, set `_fmode = _O_BINARY` at the start of `main()` (+ `<stdio.h>`/`<fcntl.h>`/`<io.h>`), and `_setmode` `stdout`/`stdin` to `_O_BINARY` | Windows text mode truncates binary genome/suffix-array files at the first `0x1A` byte (genomeGenerate failure) and writes CRLF into SAM/logs. `_fmode` only covers files opened afterwards, so the pre-opened std streams need `_setmode`, else `--outStd SAM` injects CRLF and `--outStd BAM_*` corrupts the piped BAM (`0x0A`→`0x0D0A`). |
 | `Genome_genomeGenerate.cpp` | On `_WIN32`, `flush()`/`close()` the `Log.out` stream before moving it into the genome dir, then reopen it (append) | Windows cannot `rename()` a file that is still open (POSIX can), so genomeGenerate otherwise prints a spurious "Could not move Log.out" warning and leaves the log in the run dir. |
-| `ReadAlignChunk_mapChunk.cpp` | Under `#if defined(_LIBCPP_VERSION)`, load the read chunk with `.str(…)` instead of the `pubsetbuf` set in `ReadAlignChunk()` | **libc++'s `std::stringbuf::pubsetbuf` is a no-op** (libstdc++ honors it), so any clang/libc++ build (macOS default, Windows CLANGARM64) otherwise reports **0 input reads**. Affects upstream STAR too. |
+| `ReadAlignChunk_mapChunk.cpp` | Under `#if defined(_LIBCPP_VERSION)`: (a) load the read chunk with `.str(…)` instead of the `pubsetbuf` set in `ReadAlignChunk()`; (b) write the SAM chunk from `chunkOutBAMstream->str()` instead of the `pubsetbuf`-backed `chunkOutBAM` at all three write sites | **libc++'s `std::stringbuf::pubsetbuf` is a no-op** (libstdc++ honors it). On input this reports **0 reads**; on `--outSAMtype SAM` output the buffer stays zeroed so the file is **NUL-filled** (BAM output uses a separate path and is fine). Affects upstream STAR too. |
 | `GzIfstream.h` *(new)* | A `std::istream` backed by zlib's `gzFile` that transparently reads plain **or** gzipped FASTQ, streaming; binds its streambuf at construction so an unopened stream is `good()`. `openMulti` opens a **list** of files, decompressing each and concatenating them in `underflow()` | **Adds native streaming gzip input**: `.gz` reads work directly, with no `--readFilesCommand`, no external process, and no temp file, on all platforms — including STAR's comma-separated multi-file `--readFilesIn`. |
 | `InOutStreams.h` | Under `#ifdef STAR_GZ_INPUT`, `typedef GzIfstream ReadInFstream` and declare `ReadInFstream readIn[]` (else `std::ifstream`) | Routes read-file input through `GzIfstream` when built with `-DSTAR_GZ_INPUT`. |
 | `ReadAlignChunk_processChunks.cpp` | Widen `fastqReadOneLine(ifstream&, …)` to `istream&` | `readIn` is now a base-`istream` (`GzIfstream`); every other read-file call site was unchanged. |
@@ -205,9 +205,7 @@ as upstream except for the libc++ fix (a genuine cross-platform correctness bug)
 
 ## Redistribution & licensing
 
-The recipes above produce a **static** binary — convenient for your own use.
-Sharing this recipe is not distribution, but **shipping a compiled binary is**,
-and that triggers the license terms of everything linked into it.
+The recipes above produce a **static** binary intended for personal use.
 
 - **Own use:** the static binary is fine as-is.
 - **Redistributing the binary:** bundle the license texts + copyright notices of
@@ -216,9 +214,3 @@ and that triggers the license terms of everything linked into it.
   **gettext/libiconv (LGPL)**; the LGPL relink clause is most easily satisfied by
   building **without `-static`** so those become replaceable DLLs, then bundling
   every DLL's license.
-- **Turnkey option:** the **ngs-tools** Windows installer builds STAR / samtools /
-  Trim Galore dynamically (one shared `hts-3.dll` + runtime DLLs), collects every
-  component's license, and produces a component-selectable installer with PATH
-  registration and uninstall.
-
-STAR itself is **MIT**; the bundled htslib is MIT/BSD.
