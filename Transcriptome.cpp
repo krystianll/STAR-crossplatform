@@ -14,6 +14,15 @@ Transcriptome::Transcriptome (Parameters &Pin) : P(Pin){
     } else {//transformed genome
         trInfoDir = P.pGeOut.gDir;
     };
+#if defined(_WIN32)
+    //Windows: the on-the-fly _STARgenome (sjdbInsert.outDir) is sometimes not
+    //produced, leaving trInfoDir without geneInfo.tab; fall back to the genome dir,
+    //which holds the transcript info whenever the index was built with --sjdbGTFfile.
+    if (!P.pGe.transform.outQuant) {
+        ifstream trTest((trInfoDir+"/geneInfo.tab").c_str());
+        if (!trTest.good()) trInfoDir = P.pGe.gDir;
+    };
+#endif
 
     ifstream &geStream = ifstrOpen(trInfoDir+"/geneInfo.tab", ERROR_OUT, "SOLUTION: utilize --sjdbGTFfile /path/to/annotations.gtf option at the genome generation step or mapping step", P);
     geStream >> nGe;

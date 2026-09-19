@@ -16,9 +16,7 @@ set -u
 STAR="${STAR:?set STAR=/path/to/STAR}"
 SAMTOOLS="${SAMTOOLS:-}"
 THREADS="${THREADS:-4}"
-case "$STAR" in *.exe) IS_WIN=1;; *) IS_WIN=0;; esac    # Windows target?
-XFAIL=0
-xfail_win(){ echo "  XFAIL (known Windows bug, tracked): $1"; XFAIL=$((XFAIL+1)); }
+case "$STAR" in *.exe) IS_WIN=1;; *) IS_WIN=0;; esac    # Windows target (for platform-conditional checks)
 SAIDX=8                                  # min(14, log2(500kb)/2-1) ~ 8
 W="${1:-$PWD/star_testrun}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -79,9 +77,7 @@ nonempty sam_file/Aligned.out.sam; no_nul sam_file/Aligned.out.sam; no_cr sam_fi
 run bam_uns   --readFilesIn data/single.fq --outSAMtype BAM Unsorted        && ok "BAM Unsorted ran" || bad "BAM Unsorted"; bam_ok bam_uns/Aligned.out.bam
 run bam_sort  --readFilesIn data/single.fq --outSAMtype BAM SortedByCoordinate && ok "BAM Sorted ran" || bad "BAM Sorted"
 bam_ok bam_sort/Aligned.sortedByCoord.out.bam
-if ls -d bam_sort/*_STARtmp >/dev/null 2>&1; then
-  [ "$IS_WIN" = 1 ] && xfail_win "sorted-BAM _STARtmp dirs not removed (sysRemoveDir rmdir fails on Windows)" || bad "leftover _STARtmp in bam_sort"
-else ok "no _STARtmp leaked (bam_sort)"; fi
+if ls -d bam_sort/*_STARtmp >/dev/null 2>&1; then bad "leftover _STARtmp in bam_sort"; else ok "no _STARtmp leaked (bam_sort)"; fi
 # stdout piping (the binary-mode test)
 mkdir -p std
 "$STAR" --genomeDir idx --runThreadN 1 --readFilesIn data/single.fq --outSAMtype SAM --outStd SAM --outFileNamePrefix std/s_ >std/out.sam 2>std/s.log
@@ -95,7 +91,6 @@ mkdir -p quant
 "$STAR" --genomeDir idxg --runThreadN $THREADS --readFilesIn data/genic.fq --quantMode GeneCounts \
         --outSAMtype BAM Unsorted --outFileNamePrefix quant/ >quant/run.log 2>&1
 if [ -f quant/ReadsPerGene.out.tab ]; then ok "quantMode GeneCounts"; no_cr quant/ReadsPerGene.out.tab
-elif [ "$IS_WIN" = 1 ]; then xfail_win "--quantMode GeneCounts: Transcriptome cannot open geneInfo.tab"
 else bad "GeneCounts ReadsPerGene missing"; fi
 
 echo "########## global text-output CR/NUL sweep ##########"
@@ -114,5 +109,5 @@ else
 fi
 
 echo
-echo "########## RESULT: $PASS passed, $FAIL failed, $XFAIL known-Windows-xfail ##########"
+echo "########## RESULT: $PASS passed, $FAIL failed ##########"
 [ $FAIL -eq 0 ] || exit 1

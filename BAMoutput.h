@@ -12,6 +12,9 @@ public:
     void coordOneAlign (char *bamIn, uint bamSize, uint iRead);
     void coordBins ();
     void coordFlush ();
+#if defined(_WIN32)
+    void closeBins ();//Windows: close per-bin temp write streams so they can be deleted
+#endif
     //unsorted output
     BAMoutput (BGZF *bgzfBAMin, Parameters &Pin);
     void unsortedOneAlign (char *bamIn, uint bamSize, uint bamSize2);

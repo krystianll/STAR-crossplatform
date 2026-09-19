@@ -93,5 +93,11 @@ void bamSortByCoordinate (Parameters &P, ReadAlignChunk **RAchunk, Genome &genom
             };
             bam_cat(bamBinNamesV.size(), bamBinNames, 0, P.outBAMfileCoordName.c_str());
         };
-    };    
+#if defined(_WIN32)
+        //Windows: close the per-bin write streams so sysRemoveDir() can delete the
+        //temp files (a still-open file cannot be unlinked on Windows).
+        for (int it=0; it<P.runThreadN; it++)
+            RAchunk[it]->chunkOutBAMcoord->closeBins();
+#endif
+    };
 };

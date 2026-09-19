@@ -32,18 +32,6 @@ Exit code is 0 iff every check passes; a summary line reports `N passed, M faile
 - **Extra outputs**: `--outSAMunmapped Within`, `--quantMode GeneCounts`.
 - **Error handling**: `--readFilesCommand` on Windows must fail cleanly, not crash.
 
-## Known Windows failures (tracked `XFAIL`)
-
-The suite marks these as expected-fail on Windows (`STAR.exe`) so a run stays green
-except for genuine regressions. Both pass on Linux/macOS — they are Windows bugs to
-fix, not inherent limitations:
-
-1. **Sorted BAM leaves `_STARtmp` behind.** `--outSAMtype BAM SortedByCoordinate`
-   completes and the BAM is valid, but `sysRemoveDir` unlinks the temp files while
-   failing to `rmdir` the emptied `_STARtmp/BAMsort` dirs on Windows.
-2. **`--quantMode GeneCounts` fails.** `Transcriptome` cannot open `geneInfo.tab`
-   ("could not open input file /geneInfo.tab"); the same run works on Linux/macOS.
-
 ## Golden comparison (optional, TODO)
 
 `REF=<dir>` is reserved for diffing `Log.final.out` mapping numbers and

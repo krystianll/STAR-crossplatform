@@ -176,6 +176,19 @@ void BAMoutput::coordFlush () {//flush all alignments
     };
 };
 
+#if defined(_WIN32)
+void BAMoutput::closeBins () {//close per-bin temp write streams so the OS releases the files
+    // Windows cannot delete a still-open file. The coord bin write-streams are only
+    // flushed during the run, never closed, so sysRemoveDir(outFileTmp) would leave
+    // the BAMsort temp files (and their dirs) behind. nBins may have been reduced to
+    // 1 during bin-size estimation, so close all P.outBAMcoordNbins allocated streams.
+    if (binStream==NULL) return;
+    for (uint32 iBin=0; iBin<P.outBAMcoordNbins; iBin++)
+        if (binStream[iBin]!=NULL && binStream[iBin]->is_open())
+            binStream[iBin]->close();
+};
+#endif
+
 void BAMoutput::coordUnmappedPrepareBySJout () {//flush all alignments
     uint iBin=P.outBAMcoordNbins-1;
     binStream[iBin]->write(binStart[iBin],binBytes[iBin]);
