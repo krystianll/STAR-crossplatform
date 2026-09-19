@@ -102,12 +102,27 @@ void Genome::genomeGenerate() {
 
 	{//move Log.out file into genome directory
 		string logfn=pGe.gDir+"Log.out";
+#if defined(_WIN32)
+		//Windows cannot rename a file that is still open; close the log, move it,
+		//then reopen (append) so subsequent logging continues into the moved file.
+		P.inOut->logMain.flush();
+		P.inOut->logMain.close();
+		if ( rename( P.outLogFileName.c_str(), logfn.c_str() ) ) {
+			P.inOut->logMain.open(P.outLogFileName.c_str(), std::ios::app);
+			warningMessage("Could not move Log.out file from " + P.outLogFileName + " into " + logfn + ". Will keep " + P.outLogFileName +"\n", \
+						   std::cerr, P.inOut->logMain, P);
+		} else {
+			P.outLogFileName=logfn;
+			P.inOut->logMain.open(logfn.c_str(), std::ios::app);
+		};
+#else
 		if ( rename( P.outLogFileName.c_str(), logfn.c_str() ) ) {
 			warningMessage("Could not move Log.out file from " + P.outLogFileName + " into " + logfn + ". Will keep " + P.outLogFileName +"\n", \
 						   std::cerr, P.inOut->logMain, P);
 		} else {
 			P.outLogFileName=logfn;
 		};
+#endif
 	};
     if (sjdbOverhang<=0 && (pGe.sjdbFileChrStartEnd.at(0)!="-" || pGe.sjdbGTFfile!="-")) {
         ostringstream errOut;

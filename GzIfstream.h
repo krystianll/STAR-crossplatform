@@ -13,6 +13,9 @@
 // piping "FILE 0\n<gz1>FILE 1\n<gz2>" through one gzopen would start in
 // passthrough mode and never inflate. Opening each file with its own gzopen
 // inflates every member and works on all platforms (no fork/fifo needed).
+// We do, however, re-synthesize upstream's "FILE <n>" boundary marker ahead of
+// each file (see openNext/underflow), so the chunk reader still advances
+// readFilesIndex and per-file read groups / STARsolo barcode indexing keep working.
 
 #include <istream>
 #include <streambuf>
@@ -25,6 +28,7 @@ class GzStreambuf : public std::streambuf {
     gzFile gz_;
     std::vector<std::string> paths_;    // remaining files to concatenate
     size_t idx_;                        // next file to open in paths_
+    std::string pending_;               // synthesized "FILE n" marker to emit before next file
     static const int BUFSZ = 1 << 16;   // 64 KiB read chunk
     char buf_[BUFSZ];
 
@@ -32,9 +36,17 @@ class GzStreambuf : public std::streambuf {
     // exhausted or a file cannot be opened (caller pre-validates paths).
     bool openNext() {
         while (idx_ < paths_.size()) {
+            size_t fileIdx = idx_;       // 0-based index of the file being opened
             gz_ = gzopen(paths_[idx_++].c_str(), "rb");
             if (!gz_) return false;      // rare: openReadsFiles stat()s first
             gzbuffer(gz_, 1 << 20);      // larger internal zlib buffer (perf)
+            // Emit STAR's "FILE <n>" boundary marker ahead of this file's bytes,
+            // so the chunk reader (ReadAlignChunk_processChunks) advances
+            // readFilesIndex -> per-file --outSAMattrRGline read groups and
+            // STARsolo per-file barcode indexing work. Upstream inserts these via
+            // its cat/fifo concatenation; we synthesize them because GzIfstream
+            // concatenates the comma-separated list itself.
+            pending_ = "FILE " + std::to_string(fileIdx) + "\n";
             setg(buf_, buf_, buf_);      // empty get area -> underflow on read
             return true;
         }
@@ -66,14 +78,25 @@ public:
         if (gz_) { gzclose(gz_); gz_ = 0; }
         paths_.clear();
         idx_ = 0;
+        pending_.clear();
         setg(0, 0, 0);
     }
 
 protected:
+    // Serve the synthesized "FILE n" marker (if any) into the get area, else read
+    // the next block of file bytes. Returns the first char, or eof().
+    int_type servePendingOrEof() {
+        size_t k = pending_.copy(buf_, BUFSZ);   // "FILE n\n" always fits in BUFSZ
+        pending_.clear();
+        setg(buf_, buf_, buf_ + k);
+        return traits_type::to_int_type(*gptr());
+    }
     int_type underflow() {
         if (!gz_) return traits_type::eof();
         if (gptr() < egptr())
             return traits_type::to_int_type(*gptr());
+        if (!pending_.empty())                    // marker before the current file's bytes
+            return servePendingOrEof();
         int n;
         for (;;) {
             n = gzread(gz_, buf_, BUFSZ);
@@ -81,6 +104,8 @@ protected:
             // n==0 (EOF) or n<0 (error): current file done -> next file, if any
             gzclose(gz_); gz_ = 0;
             if (!openNext()) return traits_type::eof();
+            if (!pending_.empty())                // marker before the next file's bytes
+                return servePendingOrEof();
         }
         setg(buf_, buf_, buf_ + n);
         return traits_type::to_int_type(*gptr());
