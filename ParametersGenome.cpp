@@ -24,7 +24,9 @@ void ParametersGenome::initialize(Parameters *pPin)
         exitWithError(errOut.str(), std::cerr, pP->inOut->logMain, EXIT_CODE_PARAMETER, *pP);
     };
     
-    transform.outYes = transform.outSAM = transform.outSJ = false;
+    // Quant must be reset too: an indeterminate flag selects pGeOut.gDir
+    // instead of the requested genome/GTF annotation during quantification.
+    transform.outYes = transform.outSAM = transform.outSJ = transform.outQuant = false;
     if (transform.output.at(0) == "None") {
         //nothing to do
     } else {

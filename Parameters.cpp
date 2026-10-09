@@ -906,7 +906,7 @@ void Parameters::inputParameters (int argInN, char* argIn[]) {//input parameters
 
                 if (quant.trSAM.bamYes) {
                     if (outStd=="BAM_Quant") {
-                        outFileNamePrefix="-";
+                        outQuantBAMfileName="-";
                     } else {
                         outQuantBAMfileName=outFileNamePrefix + "Aligned.toTranscriptome.out.bam";
                     };
