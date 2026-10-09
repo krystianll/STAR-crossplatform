@@ -131,10 +131,10 @@ ifneq ($(MAKECMDGOALS),CLEAN)
 ifneq ($(MAKECMDGOALS),clean_solo)
 ifneq ($(MAKECMDGOALS),STARforMac)
 ifneq ($(MAKECMDGOALS),STARforMacGDB)
-Depend.list: $(SOURCES) parametersDefault.xxd htslib
+Depend.list: $(SOURCES) parametersDefault.xxd htslib Makefile
 	echo $(SOURCES)
 	'rm' -f ./Depend.list
-	$(CXX) $(CXXFLAGS_common) -MM $^ >> Depend.list
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS_common) $(CXXFLAGSextra) -MM $(SOURCES) >> Depend.list
 include Depend.list
 endif
 endif

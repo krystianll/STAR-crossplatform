@@ -22,6 +22,8 @@
 #include <ios>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <cstdlib>
 #include <zlib.h>
 
 class GzStreambuf : public std::streambuf {
@@ -31,6 +33,12 @@ class GzStreambuf : public std::streambuf {
     std::string pending_;               // synthesized "FILE n" marker to emit before next file
     static const int BUFSZ = 1 << 16;   // 64 KiB read chunk
     char buf_[BUFSZ];
+
+    void readError(const char *message) const {
+        std::cerr << "EXITING because of fatal input ERROR: " << paths_[idx_-1]
+                  << ": " << message << '\n';
+        std::exit(EXIT_FAILURE);
+    }
 
     // Open the next file in paths_ into gz_. Returns false when the list is
     // exhausted or a file cannot be opened (caller pre-validates paths).
@@ -63,7 +71,9 @@ public:
     // Open a single file (plain or .gz).
     bool open(const char* path) {
         std::vector<std::string> one(1, std::string(path));
-        return openList(one);
+        bool opened = openList(one);
+        pending_.clear(); // direct single-file reads (e.g. SAM headers) need no marker
+        return opened;
     }
 
     // Open a list of files, concatenated and each decompressed as needed.
@@ -100,10 +110,14 @@ protected:
         int n;
         for (;;) {
             n = gzread(gz_, buf_, BUFSZ);
-            if (n > 0) break;                 // got data
-            // n==0 (EOF) or n<0 (error): current file done -> next file, if any
+            int error = Z_OK;
+            const char *message = gzerror(gz_, &error);
+            if (n < 0 || (error != Z_OK && error != Z_STREAM_END))
+                readError(message); // corrupt/truncated gzip must not become successful EOF
+            if (n > 0) break;                 // got data, with no deferred gzip error
             gzclose(gz_); gz_ = 0;
-            if (!openNext()) return traits_type::eof();
+            if (idx_ == paths_.size()) return traits_type::eof();
+            if (!openNext()) readError("could not open input file");
             if (!pending_.empty())                // marker before the next file's bytes
                 return servePendingOrEof();
         }

@@ -6,6 +6,19 @@
 void Parameters::readSAMheader(const string readFilesCommandString, const vector<string> readFilesNames) {
 
     if (readFilesCommandString=="") {//simply read from file
+#ifdef STAR_GZ_INPUT
+        // openMulti emits FILE markers before headers; inspect each member
+        // separately so RG/PG/CO lines survive native plain/gzip concatenation.
+        for (const auto &name : readFilesNames) {
+            GzIfstream header(name.c_str());
+            while (header.peek()=='@') {
+                string line;
+                getline(header,line);
+                if (line.substr(1,2)!="HD" && line.substr(1,2)!="SQ" && !twoPass.pass2)
+                    samHeaderExtra += line + '\n';
+            }
+        }
+#else
         while (inOut->readIn[0].peek()=='@') {
             string str1;
             getline(inOut->readIn[0],str1);
@@ -13,6 +26,7 @@ void Parameters::readSAMheader(const string readFilesCommandString, const vector
                 samHeaderExtra += str1 + '\n';
             };
         };
+#endif
         return;
     };
 
