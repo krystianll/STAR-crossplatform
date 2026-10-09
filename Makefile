@@ -25,11 +25,15 @@ else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
 
+# Build provenance printed in Log.out. For distributed binaries, override both
+# on the make command line, e.g. make BUILD_PLACE=release BUILD_GIT_INFO=
+# (an empty BUILD_GIT_INFO blanks the embedded git status/diff text).
 BUILD_PLACE ?= $(HOSTNAME):$(shell pwd)
 
 COMPTIMEPLACE := -D'COMPILATION_TIME_PLACE="$(BUILD_DATE) $(BUILD_PLACE)"'
 
 
+ifeq ($(origin BUILD_GIT_INFO),undefined)
 GIT_CHECK := $(shell git status 1> /dev/null 2> /dev/null && echo 0)
 ifeq ($(GIT_CHECK),0)
 	GIT_DIFF := $(shell git diff --name-only | tr '\n' ' ')
@@ -37,7 +41,9 @@ ifeq ($(GIT_CHECK),0)
                                                     $(shell git log | head -n 1) ; \
                                                     diff files: $(GIT_DIFF)
 endif
-GIT_BRANCH_COMMIT_DIFF := -D'GIT_BRANCH_COMMIT_DIFF="$(GIT_BRANCH_COMMIT_DIFF)"'
+BUILD_GIT_INFO := $(GIT_BRANCH_COMMIT_DIFF)
+endif
+GIT_BRANCH_COMMIT_DIFF := -D'GIT_BRANCH_COMMIT_DIFF="$(BUILD_GIT_INFO)"'
 
 # Defaults, can be overridden by make arguments or environment
 CXXFLAGS ?= -pipe -Wall -Wextra
