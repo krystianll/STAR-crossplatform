@@ -7,6 +7,12 @@
 
 void bamSortByCoordinate (Parameters &P, ReadAlignChunk **RAchunk, Genome &genome, Solo &solo) {
     if (P.outBAMcoord) {//sort BAM if needed
+#if defined(_WIN32)
+        // Mapping has flushed the bins. Close writers before sorting reads and
+        // removes them, so Windows releases consumed bins immediately too.
+        for (int it=0; it<P.runThreadN; it++)
+            RAchunk[it]->chunkOutBAMcoord->closeBins();
+#endif
         *P.inOut->logStdOut << timeMonthDayTime() << " ..... started sorting BAM\n" <<flush;
         P.inOut->logMain << timeMonthDayTime() << " ..... started sorting BAM\n" <<flush;
         uint32 nBins=P.outBAMcoordNbins;
@@ -93,11 +99,5 @@ void bamSortByCoordinate (Parameters &P, ReadAlignChunk **RAchunk, Genome &genom
             };
             bam_cat(bamBinNamesV.size(), bamBinNames, 0, P.outBAMfileCoordName.c_str());
         };
-#if defined(_WIN32)
-        //Windows: close the per-bin write streams so sysRemoveDir() can delete the
-        //temp files (a still-open file cannot be unlinked on Windows).
-        for (int it=0; it<P.runThreadN; it++)
-            RAchunk[it]->chunkOutBAMcoord->closeBins();
-#endif
     };
 };

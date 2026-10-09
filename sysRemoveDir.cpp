@@ -1,3 +1,8 @@
+#if defined(_WIN32)
+// Select MinGW's nftw64 callback ABI as well as its 64-bit stat structure.
+#undef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
 #include <string>
 #include <cstring>
 //#define _XOPEN_SOURCE 500

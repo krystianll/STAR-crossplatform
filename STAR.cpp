@@ -38,6 +38,31 @@
 #include "htslib/htslib/sam.h"
 #include "parametersDefault.xxd"
 
+#if defined(_WIN32)
+// Windows compatibility is kept here; main only calls this at the cleanup point.
+static void closeWindowsTemporaryStreams(Parameters &P, ReadAlignChunk **RAchunk, Solo &soloMain)
+{
+    // POSIX can unlink open temp files; Windows requires closing each handle.
+    for (int it = 0; it < P.runThreadN; ++it) {
+        ReadAlign &ra = *RAchunk[it]->RA;
+        ra.chunkOutChimSAM.close();
+        ra.chunkOutChimJunction->close();
+        for (uint im = 0; im < P.readNends; ++im) {
+            ra.chunkOutUnmappedReadsStream[im].close();
+            ra.chunkOutFilterBySJoutFiles[im].close();
+        }
+    }
+    if (P.pSolo.type != 0 && P.pSolo.type != P.pSolo.SoloTypes::CB_samTagOut) {
+        for (uint32 f = 0; f < P.pSolo.nFeatures; ++f) {
+            for (int it = 0; it < P.runThreadN; ++it)
+                soloMain.soloFeat[f]->readFeatAll[it]->streamReads->close();
+            for (auto stream : soloMain.soloFeat[f]->redistrFilesStreams)
+                stream->close();
+        }
+    }
+}
+#endif
+
 void usage(int usageType)
 {
     cout << "Usage: STAR  [options]... --genomeDir /path/to/genome/index/   --readFilesIn R1.fq R2.fq\n";
@@ -63,6 +88,11 @@ void usage(int usageType)
 int main(int argInN, char *argIn[])
 {
 #if defined(_WIN32)
+    // UCRT defaults to 512 stdio streams; BAM sorting opens bins per thread.
+    if (_setmaxstdio(8192) == -1) {
+        std::cerr << "EXITING: could not raise the Windows CRT stream limit\n";
+        return 1;
+    }
     // Windows opens files in text mode by default, which (a) truncates binary
     // genome/SA files at the first 0x1A byte and (b) writes CRLF into SAM/logs.
     // Default everything to binary: fixes the suffix-array corruption and keeps
@@ -313,6 +343,9 @@ int main(int argInN, char *argIn[])
                      << flush;
     if (P.outTmpKeep == "None")
     {
+#if defined(_WIN32)
+        closeWindowsTemporaryStreams(P, RAchunk, soloMain);
+#endif
         sysRemoveDir(P.outFileTmp);
     };
 
