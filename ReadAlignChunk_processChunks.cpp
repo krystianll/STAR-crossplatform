@@ -118,7 +118,7 @@ void ReadAlignChunk::processChunks() {//read-map-write chunks
                         };
                         //read the second field of the read name line
                         char passFilterIllumina='N';
-                        if (P.inOut->readIn[0].peek()!='\n') {//2nd field exists
+                        if (P.inOut->readIn[0].peek()!='\n' && P.inOut->readIn[0].peek()!='\r') {//2nd field exists (LF or CRLF)
                             string field2;
                             P.inOut->readIn[0] >> field2;
                             if (field2.length()>=3 && field2[1]==':' && field2[2]=='Y' && field2[3]==':' )
