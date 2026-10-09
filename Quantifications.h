@@ -2,7 +2,11 @@
 #define CODE_Quantifications
 #include "IncludeDefine.h"
 
+#if defined(_WIN32)
+#define uintQ unsigned long long // Windows LLP64: long is only 32 bits.
+#else
 #define uintQ unsigned long
+#endif
 
 class Quantifications {
     public:

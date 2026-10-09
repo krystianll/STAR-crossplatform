@@ -107,7 +107,8 @@ void Genome::genomeGenerate() {
 		//then reopen (append) so subsequent logging continues into the moved file.
 		P.inOut->logMain.flush();
 		P.inOut->logMain.close();
-		if ( rename( P.outLogFileName.c_str(), logfn.c_str() ) ) {
+		// MOVEFILE_REPLACE_EXISTING restores POSIX rename's overwrite behavior.
+		if ( !MoveFileExA(P.outLogFileName.c_str(), logfn.c_str(), 1) ) {
 			P.inOut->logMain.open(P.outLogFileName.c_str(), std::ios::app);
 			warningMessage("Could not move Log.out file from " + P.outLogFileName + " into " + logfn + ". Will keep " + P.outLogFileName +"\n", \
 						   std::cerr, P.inOut->logMain, P);

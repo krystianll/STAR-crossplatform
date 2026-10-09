@@ -9,15 +9,45 @@
 #define fstream_Chunk_Max 2147483647
 #include <cstring>
 
+// Keep platform-specific path and handle rules out of the I/O routines below.
+static size_t firstParentSeparator(const string &path)
+{
+#if defined(_WIN32)
+    if (path.compare(0,2,"//")==0) { // UNC root: never try to mkdir /, server, or share
+        size_t serverEnd=path.find('/',2);
+        if (serverEnd==string::npos) return string::npos;
+        size_t shareEnd=path.find('/',serverEnd+1);
+        return shareEnd==string::npos ? string::npos : path.find('/',shareEnd+1);
+    }
+    if (path.size()>2 && path[1]==':') // skip the existing drive root
+        return path.find('/',3);
+#endif
+    return path.find('/',1);
+}
+
+static void removeFailedOutput(ofstream &stream, const string &path)
+{
+#if defined(_WIN32)
+    stream.close(); // Windows cannot unlink this file while its writer is open.
+#else
+    (void) stream;
+#endif
+    remove(path.c_str());
+}
+
 void createDirectory(const string dirPathIn, const mode_t dirPerm, const string dirParameter, Parameters &P)
 {
-	string dirPath = dirPathIn.substr(0,dirPathIn.find_last_of('/')+1);
+	string dirPath = dirPathIn;
+#if defined(_WIN32)
+    replace(dirPath.begin(), dirPath.end(), '\\', '/');
+#endif
+    dirPath = dirPath.substr(0,dirPath.find_last_of('/')+1);
 	if (mkdir(dirPath.c_str(), dirPerm) == -1) {
 		if ( errno == EEXIST ) {//directory exists
 			P.inOut->logMain << dirParameter << " directory exists and will be overwritten: " << dirPath <<std::endl;
 		} else {//other error
 			//will try to create parent directories
-			size_t i1=dirPath.find_first_of('/',1);
+			size_t i1=firstParentSeparator(dirPath);
 			while (i1<dirPath.size()) {
 				string dirPath1=dirPath.substr(0,i1);
 				if (mkdir(dirPath1.c_str(), dirPerm) == -1) {
@@ -75,7 +105,7 @@ void fstreamWriteBig(std::ofstream &S, char* A, unsigned long long N, std::strin
         struct stat statBuf;
         stat(fileName.c_str(), &statBuf);
 
-        remove(fileName.c_str());
+        removeFailedOutput(S, fileName);
 
         ostringstream errOut;
         errOut << errorID<<": exiting because of *OUTPUT FILE* error: could not write the output file "<< fileName <<"\n";

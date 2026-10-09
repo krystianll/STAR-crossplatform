@@ -44,7 +44,12 @@ void SoloFeature::outputResults(bool cellFilterYes, string outputPrefixMat)
         };
         case SoloFeatureTypes::SJ :
             string sjout; //full path to SJ.out.tab with user-defined prefix
-            if (P.outFileNamePrefix[0]=='/') {
+            if (P.outFileNamePrefix[0]=='/'
+#if defined(_WIN32)
+                || P.outFileNamePrefix[0]=='\\'
+                || (P.outFileNamePrefix.size()>2 && P.outFileNamePrefix[1]==':')
+#endif
+            ) {
                 sjout = P.outFileNamePrefix + "SJ.out.tab";
             } else {
                 char cwd [4096];

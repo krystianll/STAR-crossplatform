@@ -60,6 +60,7 @@ using namespace std;
   // Win32 prototypes declared directly to avoid <windows.h> (its min/max macros
   // collide with STAR's and libc++'s).
   extern "C" __declspec(dllimport) int __stdcall CopyFileA(const char*, const char*, int);
+  extern "C" __declspec(dllimport) int __stdcall MoveFileExA(const char*, const char*, unsigned long);
   extern "C" __declspec(dllimport) int __stdcall GetDiskFreeSpaceExA(const char*, unsigned long long*, unsigned long long*, unsigned long long*);
   // POSIX mkdir(path,mode) -> MinGW's 1-arg _mkdir (a distinct C++ overload from
   // MinGW's own 1-arg mkdir).
@@ -70,11 +71,22 @@ using namespace std;
   // Symlinks need privilege on Windows; STARsolo only needs the target reachable
   // under the link name, so copy instead.
   inline int symlink(const char *target, const char *linkpath) { return CopyFileA(target, linkpath, 0) ? 0 : -1; }
-  // statvfs: only used to log free disk space. Report the current volume's numbers.
+  // statvfs: only used to log free disk space; query the output file's volume.
   struct statvfs { unsigned long long f_bsize, f_frsize, f_blocks, f_bfree, f_bavail; };
-  inline int statvfs(const char * /*path*/, struct statvfs *buf) {
+  inline int statvfs(const char *path, struct statvfs *buf) {
+      *buf = {};
+      struct _stat64 info;
+      if (_stat64(path, &info) != 0) return -1;
+      std::string dir(path);
+      if (!(info.st_mode & _S_IFDIR)) {
+          const auto slash = dir.find_last_of("/\\");
+          dir = slash == std::string::npos ? "." : dir.substr(0, slash+1);
+      }
       unsigned long long avail=0, total=0, freeTotal=0;
-      GetDiskFreeSpaceExA(nullptr, &avail, &total, &freeTotal);
+      if (!GetDiskFreeSpaceExA(dir.c_str(), &avail, &total, &freeTotal)) {
+          errno = EIO;
+          return -1;
+      }
       buf->f_bsize=1; buf->f_frsize=1; buf->f_blocks=total; buf->f_bfree=freeTotal; buf->f_bavail=avail;
       return 0;
   }
