@@ -17,6 +17,8 @@ LDFLAGS_static := -static -static-libgcc -pthread -Lhtslib -lhts -lz
 LDFLAGS_Mac :=-pthread -lz htslib/libhts.a
 LDFLAGS_Mac_static :=-pthread -lz -static-libgcc htslib/libhts.a
 LDFLAGS_gdb := $(LDFLAGS_shared)
+# native read input (-DSTAR_GZ_INPUT, GzIfstream.h) also decompresses bzip2
+LDFLAGS_GZ = $(if $(findstring STAR_GZ_INPUT,$(CXXFLAGSextra) $(CXXFLAGS)),-lbz2)
 
 DATE_FMT = --iso-8601=seconds
 ifdef SOURCE_DATE_EPOCH
@@ -158,48 +160,48 @@ parametersDefault.xxd: parametersDefault
 	xxd -i parametersDefault > parametersDefault.xxd
 
 STAR$(SFX) : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) $(CXXFLAGS)
-STAR$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS)
+STAR$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS_GZ) $(LDFLAGS)
 STAR$(SFX) : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 STARstatic$(SFX) : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) $(CXXFLAGS)
-STARstatic$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_static) $(LDFLAGS)
+STARstatic$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_static) $(LDFLAGS_GZ) $(LDFLAGS)
 STARstatic$(SFX) : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 STARlong$(SFX) : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) -D'COMPILE_FOR_LONG_READS' $(CXXFLAGS)
-STARlong$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS)
+STARlong$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS_GZ) $(LDFLAGS)
 STARlong$(SFX) : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STARlong$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 STARlongStatic$(SFX) : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) -D'COMPILE_FOR_LONG_READS' $(CXXFLAGS)
-STARlongStatic$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_static) $(LDFLAGS)
+STARlongStatic$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_static) $(LDFLAGS_GZ) $(LDFLAGS)
 STARlongStatic$(SFX) : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STARlong$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 
 
 POSIXSHARED : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) -DPOSIX_SHARED_MEM $(CXXFLAGS)
-POSIXSHARED : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS)
+POSIXSHARED : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS_GZ) $(LDFLAGS)
 POSIXSHARED : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 gdb : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_gdb) $(CXXFLAGS)
-gdb : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_gdb) $(LDFLAGS)
+gdb : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_gdb) $(LDFLAGS_GZ) $(LDFLAGS)
 gdb : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 gdb-long : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_gdb) -D'COMPILE_FOR_LONG_READS' $(CXXFLAGS)
-gdb-long : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_gdb) $(LDFLAGS)
+gdb-long : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_gdb) $(LDFLAGS_GZ) $(LDFLAGS)
 gdb-long : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STARlong $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 STARforMacStatic : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) -D'COMPILE_FOR_MAC' $(CXXFLAGS)
-STARforMacStatic : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_Mac_static) $(LDFLAGS)
+STARforMacStatic : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_Mac_static) $(LDFLAGS_GZ) $(LDFLAGS)
 STARforMacStatic : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
 
 STARlongForMacStatic : CXXFLAGS := -D'COMPILE_FOR_LONG_READS' $(CXXFLAGSextra) $(CXXFLAGS_main) -D'COMPILE_FOR_MAC' $(CXXFLAGS)
-STARlongForMacStatic : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_Mac_static) $(LDFLAGS)
+STARlongForMacStatic : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_Mac_static) $(LDFLAGS_GZ) $(LDFLAGS)
 STARlongForMacStatic : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STARlong $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)

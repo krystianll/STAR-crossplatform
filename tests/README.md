@@ -67,7 +67,23 @@ The C++ runner compiles directly; it does not require htslib or a test framework
   redistribution, corrected Solo BAM tags, tag-only Solo, BAM-input coverage,
   and external cell filtering. Results: `portability_extended/results.json`.
 
-The second suite is included automatically by `run_tests.sh`. On Windows,
+- `test_bzip2_input.py` (run by `run_tests.sh`; to rerun it alone, start it
+  from a finished `run_tests.sh` work directory): native bzip2 input. Single-end, paired-end, a `.bz2`
+  file without the extension, a non-ASCII path, concatenated streams,
+  trailing bytes after the last stream, SAM input with headers, and a
+  plain/gzip/bzip2 multi-file list with per-file read groups must all match
+  the plain-text alignments. Truncated, bad-CRC and corrupt files must exit
+  with a clean error. On POSIX, plain and gzip input through a fifo checks
+  that pipes are not sniffed. `--reference` compares its 8 fingerprints with
+  another platform's `bzip2/results.json`:
+
+  ```bash
+  cd /path/to/completed-suite
+  python3 /path/to/tests/test_bzip2_input.py --star /absolute/path/to/STAR \
+    --fixture . --output bzip2 [--reference /path/to/other/bzip2/results.json]
+  ```
+
+The second suite and the bzip2 suite are included automatically by `run_tests.sh`. On Windows,
 `STAR_TEST_UNC_ROOT=//server/share/disposable-audit-directory` adds two UNC
 directory-creation/output checks (forward and backslashes). The share must
 already exist and be accessible; the suite creates only its test directories.
@@ -92,8 +108,9 @@ The outer shell summary counts aggregate checks. Detailed integration results,
 commands, logs, and 23 canonical output fingerprints are in
 `portability/results.json`; nested checks are not additional outer checks.
 The second suite retains 11 fingerprints: the single-read control plus 10
-additional output categories. `REF` compares both suites;
-reference runs must therefore include `portability_extended/results.json` too.
+additional output categories. `REF` compares all three suites;
+reference runs must therefore include `portability_extended/results.json` and
+`bzip2/results.json` too.
 
 ## Cross-platform comparisons
 

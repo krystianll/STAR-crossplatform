@@ -41,7 +41,7 @@ the result with the shared *Verify* step at the end.
 ### Linux — x86-64
 
 ```bash
-sudo apt install build-essential make zlib1g-dev libdeflate-dev     # Debian/Ubuntu
+sudo apt install build-essential make zlib1g-dev libbz2-dev libdeflate-dev     # Debian/Ubuntu
 
 cd htslib
 ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
@@ -57,7 +57,7 @@ make STAR CXXFLAGS_SIMD=-mavx2 CXXFLAGSextra="-DSTAR_GZ_INPUT" \
 Same as x86-64, only the SIMD flag differs (opal's bundled SIMDe maps AVX2 → NEON):
 
 ```bash
-sudo apt install build-essential make zlib1g-dev libdeflate-dev
+sudo apt install build-essential make zlib1g-dev libbz2-dev libdeflate-dev
 
 cd htslib
 ./configure --with-libdeflate --disable-bz2 --disable-lzma --disable-libcurl --disable-plugins
@@ -117,7 +117,7 @@ Install MSYS2 (<https://www.msys2.org>) and open the **"MSYS2 UCRT64"** shell
 ```bash
 pacman -S --needed \
   mingw-w64-ucrt-x86_64-gcc  mingw-w64-ucrt-x86_64-make \
-  mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-libdeflate \
+  mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-bzip2 mingw-w64-ucrt-x86_64-libdeflate \
   mingw-w64-ucrt-x86_64-libsystre mingw-w64-ucrt-x86_64-gettext mingw-w64-ucrt-x86_64-libiconv
 
 cd htslib
@@ -137,7 +137,7 @@ Open the **"MSYS2 CLANGARM64"** shell.
 ```bash
 pacman -S --needed \
   mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-make \
-  mingw-w64-clang-aarch64-zlib  mingw-w64-clang-aarch64-libdeflate \
+  mingw-w64-clang-aarch64-zlib  mingw-w64-clang-aarch64-bzip2 mingw-w64-clang-aarch64-libdeflate \
   mingw-w64-clang-aarch64-libsystre mingw-w64-clang-aarch64-gettext mingw-w64-clang-aarch64-libiconv
 
 cd htslib
@@ -160,7 +160,7 @@ mkdir idx
 ./STAR --runMode genomeGenerate --genomeDir idx --genomeFastaFiles ref.fa \
        --genomeSAindexNbases 11 --outFileNamePrefix gg_
 ./STAR --genomeDir idx --readFilesIn reads.fq.gz --outSAMtype BAM Unsorted \
-       --outFileNamePrefix aln_          # gzipped input, no --readFilesCommand
+       --outFileNamePrefix aln_          # gzipped input, no --readFilesCommand (.bz2 works the same way)
 grep "input reads\|Uniquely mapped" aln_Log.final.out    # expect >0 mapped
 ```
 (`--genomeSAindexNbases` = min(14, log2(genomeLength)/2 − 1): ~11 for a small test
@@ -169,7 +169,7 @@ genome, 14 for full human. The binary is self-contained — check with `ldd`
 
 ### Known limitations on Windows
 - `--readFilesCommand <arbitrary cmd>` is unsupported (no `fork`/named pipes on
-  native Windows). Gzip is handled internally instead; for other preprocessing,
+  native Windows). Gzip and bzip2 are handled internally instead; for other preprocessing,
   transform reads in a separate step.
 - Paths outside the active Windows ANSI code page are not supported by the current narrow-character filesystem interfaces; Unicode path support remains open.
 - Shared-memory genome loading (`--genomeLoad LoadAndKeep`/`Remove`) is
@@ -211,11 +211,12 @@ for resource limits, UNC paths, and additional file-lifetime checks.
 | `Parameters.cpp` | `--outStd BAM_Quant` sets `outQuantBAMfileName="-"` | **Upstream 2.7.11b bug (unguarded):** upstream assigns `"-"` to `outFileNamePrefix` instead, then opens an empty BAM filename and crashes. |
 | `ThreadControl.cpp` | `pthread_mutex_init(&mutexLogMain)` in the `ThreadControl` constructor | **Upstream 2.7.11b bug (unguarded):** `mutexLogMain` is locked (even with one thread) but never initialised. A zero-filled mutex happens to work on glibc; on macOS `pthread_mutex_lock` returns `EINVAL` and does not lock, and winpthreads likewise rejects it, so `Log.out` writes from mapping threads were unsynchronised. The other `g_threadChunks` mutexes are initialised before their (`runThreadN>1`-guarded) use. |
 | `Parameters_readSAMheader.cpp` / `GzIfstream.h` | Preserve headers from each native plain/gzip SAM input; reject gzip read errors instead of treating them as EOF | Correctness of the optional `STAR_GZ_INPUT` path across platforms. |
+| `Makefile` | `LDFLAGS_GZ` adds `-lbz2` to every STAR target's link line when `CXXFLAGSextra`/`CXXFLAGS` contain `STAR_GZ_INPUT` | `GzIfstream.h` reads bzip2 through libbz2; builds without `STAR_GZ_INPUT` keep upstream's dependencies. The recipes above that set `LDFLAGS_shared` get it too. |
 | `Makefile` | Include user preprocessor flags when generating header dependencies | Otherwise edits to the conditionally included `GzIfstream.h` can leave stale object files. |
 | `Makefile` | New `BUILD_GIT_INFO` variable for the embedded git text (upstream's `BUILD_PLACE` is kept) | Upstream embeds `$(HOSTNAME):$(pwd)` and `git status`/`diff` text in every binary and prints them in `Log.out`. For distributed builds pass `BUILD_PLACE=<neutral text> BUILD_GIT_INFO=` (empty blanks the git text); when not given, both behave exactly as upstream. |
 | `ParametersGenome.cpp` | Include `transform.outQuant` in the existing assignment that resets the transformed-output flags | **Upstream 2.7.11b bug:** this bool was otherwise uninitialized unless `Quant` was explicitly requested. It can select an empty transformed-genome directory and intermittently fail on `/geneInfo.tab`, despite correctly generated annotations. One assignment fixes all platforms. The earlier Windows-only `Transcriptome.cpp` directory fallback was removed; it did not fix the flag and could substitute the wrong annotation. See `tests/WINDOWS_ISSUES.md`. |
 | `ReadAlignChunk_mapChunk.cpp` | Under `#if defined(_LIBCPP_VERSION)`: (a) load the read chunk with `.str(…)` instead of the `pubsetbuf` set in `ReadAlignChunk()`; (b) write the SAM chunk from `chunkOutBAMstream->str()` instead of the `pubsetbuf`-backed `chunkOutBAM` at all three write sites | **libc++'s `std::stringbuf::pubsetbuf` is a no-op** (libstdc++ honors it). On input this reports **0 reads**; on `--outSAMtype SAM` output the buffer stays zeroed so the file is **NUL-filled** (BAM output uses a separate path and is fine). Affects upstream STAR too. |
-| `GzIfstream.h` *(new)* | A `std::istream` backed by zlib's `gzFile` that transparently reads plain **or** gzipped FASTQ, streaming; binds its streambuf at construction so an unopened stream is `good()`. `openMulti` opens a **list** of files, decompressing each and concatenating them in `underflow()` | **Adds native streaming gzip input**: `.gz` reads work directly, with no `--readFilesCommand`, no external process, and no temp file, on all platforms — including STAR's comma-separated multi-file `--readFilesIn`. |
+| `GzIfstream.h` *(new)* | A `std::istream` backed by zlib's `gzFile` that transparently reads plain **or** gzipped FASTQ, streaming; binds its streambuf at construction so an unopened stream is `good()`. `openMulti` opens a **list** of files, decompressing each and concatenating them in `underflow()`. A regular file that starts with a bzip2 header (recognised by its bytes, not its name) is read through libbz2 instead, including concatenated bzip2 streams; bytes after the last stream are ignored as `bzip2 -dc` does, while a truncated or corrupt stream is a fatal error. Pipes are not sniffed, so they still read plain or gzip | **Adds native streaming gzip and bzip2 input**: `.gz` and `.bz2` reads work directly, with no `--readFilesCommand`, no external process, and no temp file, on all platforms — including STAR's comma-separated multi-file `--readFilesIn`, where plain, gzip and bzip2 files can be mixed. Like gzip, bzip2 checks a block's CRC only after handing out its bytes, so damage inside a block may first be reported by STAR's read parser. |
 | `InOutStreams.h` | Under `#ifdef STAR_GZ_INPUT`, `typedef GzIfstream ReadInFstream` and declare `ReadInFstream readIn[]` (else `std::ifstream`) | Routes read-file input through `GzIfstream` when built with `-DSTAR_GZ_INPUT`. |
 | `ReadAlignChunk_processChunks.cpp` | Widen `fastqReadOneLine(ifstream&, …)` to `istream&` | `readIn` is now a base-`istream` (`GzIfstream`); every other read-file call site was unchanged. |
 | `Parameters_readFilesInit.cpp` | Under `#ifdef STAR_GZ_INPUT`, keep `readFilesCommandString` empty in the default (`--readFilesCommand -`) case even for multiple files | Multiple comma-separated files are concatenated and decompressed by `GzIfstream` itself, so no external `cat`/fifo is used (works on Windows too, which has no `fork`/fifo). |
@@ -235,7 +236,7 @@ smallest necessary call, condition, or assignment. Current locations:
 
 - **Headers:** `IncludeDefine.h` contains the Windows API shims and stat mapping;
   `Quantifications.h` contains the counter-width correction; `GzIfstream.h`
-  contains native gzip streaming and its error handling. `STAR_GZ_INPUT` and
+  contains native gzip/bzip2 streaming and its error handling. `STAR_GZ_INPUT` and
   `_LIBCPP_VERSION` guard functionality/runtime differences that also apply
   outside Windows.
 - **Top-of-file compatibility code:** `sysRemoveDir.cpp` selects the 64-bit

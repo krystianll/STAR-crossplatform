@@ -118,6 +118,11 @@ extended_args=(--star "$STAR" --fixture . --output portability_extended --thread
 [ -z "${STAR_TEST_UNC_ROOT:-}" ] || extended_args+=(--unc-root "$STAR_TEST_UNC_ROOT")
 "$PYTHON" "$HERE/test_portability_extended.py" "${extended_args[@]}" && ok "resource and workflow parity" || bad "resource and workflow parity"
 
+echo "########## native bzip2 input ##########"
+bzip2_args=(--star "$STAR" --fixture . --output bzip2 --threads "$parity_threads")
+[ -z "${REF:-}" ] || bzip2_args+=(--reference "$REF/bzip2/results.json")
+"$PYTHON" "$HERE/test_bzip2_input.py" "${bzip2_args[@]}" && ok "native bzip2 input" || bad "native bzip2 input"
+
 echo "########## global text-output CR/NUL sweep ##########"
 if "$PYTHON" - <<'PYSCAN'
 from pathlib import Path
