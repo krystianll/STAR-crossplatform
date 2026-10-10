@@ -1,6 +1,8 @@
 #ifndef STAR_GZIFSTREAM_H
 #define STAR_GZIFSTREAM_H
 
+// STAR-crossplatform: this whole file is a fork addition (not in upstream STAR 2.7.11b).
+
 // A drop-in std::istream for read files that transparently decompresses gzip
 // or bzip2 input and passes uncompressed input through: zlib's gzFile reads
 // gzip and plain files, libbz2 reads a regular file that starts with a bzip2

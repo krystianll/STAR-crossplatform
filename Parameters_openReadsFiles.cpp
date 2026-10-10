@@ -6,7 +6,7 @@ void Parameters::openReadsFiles()
 {
     if (readFilesCommandString=="") {//read from file
 #ifdef STAR_GZ_INPUT
-        // GzIfstream path: open (and transparently concatenate + decompress) the
+        // STAR-crossplatform: GzIfstream path: open (and transparently concatenate + decompress) the
         // full split file list per mate. Handles plain OR .gz, one or many
         // comma-separated files, on every platform - no cat/fork/fifo. Files are
         // stat()ed up front so a missing later file gives a clean error instead
@@ -107,7 +107,7 @@ void Parameters::openReadsFiles()
 
             readFilesCommandPID[imate]=0;
 
-#if defined(_WIN32)
+#if defined(_WIN32) // STAR-crossplatform: no fork/exec or named pipes on Windows
             exitWithError("EXITING: --readFilesCommand is not supported on native Windows (requires POSIX fork/exec + named pipes). Provide uncompressed reads, or decompress them in a separate step.\n", std::cerr, inOut->logMain, EXIT_CODE_PARAMETER, *this);
 #else
             ostringstream errOut;

@@ -15,7 +15,7 @@ void ReadAlignChunk::mapChunk() {//map one chunk. Input reads stream has to be s
     for (uint ii=0;ii<P.readNends;ii++) {//clear eof and rewind the input streams
         RA->readInStream[ii]->clear();
 #if defined(_LIBCPP_VERSION)
-        // libc++'s std::stringbuf::pubsetbuf is a no-op (unlike libstdc++), so the
+        // STAR-crossplatform: libc++'s std::stringbuf::pubsetbuf is a no-op (unlike libstdc++), so the
         // chunk buffer wired up in ReadAlignChunk() is invisible to the stream and
         // no reads are seen. Load the chunk content explicitly instead. The 2-stage
         // path points readInStream at a real fstream, so only rewind that one.
@@ -59,7 +59,7 @@ void ReadAlignChunk::mapChunk() {//map one chunk. Input reads stream has to be s
             } else if ( chunkOutBAMtotal + P.limitOutSAMoneReadBytes > P.chunkOutBAMsizeBytes || (readStatus==-1 && noReadsLeft) ) {//write buffer to disk because it's almost full, or all reads are mapped
                 if ( P.outSAMorder == "PairedKeepInputOrder" && P.runThreadN>1 ) {//output chunks into separate files
 #if defined(_LIBCPP_VERSION)
-                    // libc++'s stringbuf::pubsetbuf is a no-op, so the SAM text is in
+                    // STAR-crossplatform: libc++'s stringbuf::pubsetbuf is a no-op, so the SAM text is in
                     // the stream's own buffer, not chunkOutBAM (which stays zeroed).
                     {const std::string samChunk_=chunkOutBAMstream->str(); chunkOutBAMfile.write(samChunk_.data(),chunkOutBAMtotal);}
 #else
@@ -71,6 +71,7 @@ void ReadAlignChunk::mapChunk() {//map one chunk. Input reads stream has to be s
                     //SAM output
                     if (P.runThreadN>1) pthread_mutex_lock(&g_threadChunks.mutexOutSAM);
 #if defined(_LIBCPP_VERSION)
+                    // STAR-crossplatform: libc++ pubsetbuf is a no-op, write SAM from the stream's own buffer
                     {const std::string samChunk_=chunkOutBAMstream->str(); P.inOut->outSAM->write(samChunk_.data(),chunkOutBAMtotal);}
 #else
                     P.inOut->outSAM->write(chunkOutBAM,chunkOutBAMtotal);
@@ -132,6 +133,7 @@ void ReadAlignChunk::mapChunk() {//map one chunk. Input reads stream has to be s
 
     if ( P.outSAMbool && P.outSAMorder == "PairedKeepInputOrder" && P.runThreadN>1 ) {//write the remaining part of the buffer, close and rename chunk files
 #if defined(_LIBCPP_VERSION)
+        // STAR-crossplatform: libc++ pubsetbuf is a no-op, write SAM from the stream's own buffer
         {const std::string samChunk_=chunkOutBAMstream->str(); chunkOutBAMfile.write(samChunk_.data(),chunkOutBAMtotal);}
 #else
         chunkOutBAMfile.write(chunkOutBAM,chunkOutBAMtotal);

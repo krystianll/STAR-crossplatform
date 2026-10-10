@@ -142,7 +142,7 @@ void Parameters::readFilesInit()
     readFilesCommandString="";
     if (readFilesCommand.at(0)=="-") {
 #ifdef STAR_GZ_INPUT
-        // GzIfstream reads plain/gz directly and concatenates multiple
+        // STAR-crossplatform: GzIfstream reads plain/gz directly and concatenates multiple
         // comma-separated files itself (see openReadsFiles), so the default
         // (no-command) case needs no external "cat"/fork/fifo on any platform.
         // Leaving readFilesCommandString empty routes through the GzIfstream path.

@@ -1,7 +1,7 @@
 #include "streamFuns.h"
 #include "ErrorWarning.h"
 #include <fstream>
-#if !defined(_WIN32)
+#if !defined(_WIN32) // STAR-crossplatform: no statvfs.h on Windows (shim in IncludeDefine.h)
 #include <sys/statvfs.h>
 #endif
 #include <sys/stat.h>
@@ -9,7 +9,7 @@
 #define fstream_Chunk_Max 2147483647
 #include <cstring>
 
-// Keep platform-specific path and handle rules out of the I/O routines below.
+// STAR-crossplatform: Keep platform-specific path and handle rules out of the I/O routines below.
 static size_t firstParentSeparator(const string &path)
 {
 #if defined(_WIN32)
@@ -38,7 +38,7 @@ static void removeFailedOutput(ofstream &stream, const string &path)
 void createDirectory(const string dirPathIn, const mode_t dirPerm, const string dirParameter, Parameters &P)
 {
 	string dirPath = dirPathIn;
-#if defined(_WIN32)
+#if defined(_WIN32) // STAR-crossplatform: normalize backslashes to '/'
     replace(dirPath.begin(), dirPath.end(), '\\', '/');
 #endif
     dirPath = dirPath.substr(0,dirPath.find_last_of('/')+1);
@@ -47,7 +47,7 @@ void createDirectory(const string dirPathIn, const mode_t dirPerm, const string 
 			P.inOut->logMain << dirParameter << " directory exists and will be overwritten: " << dirPath <<std::endl;
 		} else {//other error
 			//will try to create parent directories
-			size_t i1=firstParentSeparator(dirPath);
+			size_t i1=firstParentSeparator(dirPath); // STAR-crossplatform: skip drive/UNC roots
 			while (i1<dirPath.size()) {
 				string dirPath1=dirPath.substr(0,i1);
 				if (mkdir(dirPath1.c_str(), dirPerm) == -1) {
@@ -105,7 +105,7 @@ void fstreamWriteBig(std::ofstream &S, char* A, unsigned long long N, std::strin
         struct stat statBuf;
         stat(fileName.c_str(), &statBuf);
 
-        removeFailedOutput(S, fileName);
+        removeFailedOutput(S, fileName); // STAR-crossplatform: close writer first so Windows can remove the file
 
         ostringstream errOut;
         errOut << errorID<<": exiting because of *OUTPUT FILE* error: could not write the output file "<< fileName <<"\n";

@@ -906,7 +906,7 @@ void Parameters::inputParameters (int argInN, char* argIn[]) {//input parameters
 
                 if (quant.trSAM.bamYes) {
                     if (outStd=="BAM_Quant") {
-                        outQuantBAMfileName="-";
+                        outQuantBAMfileName="-"; // STAR-crossplatform: upstream bug fix, was outFileNamePrefix="-"
                     } else {
                         outQuantBAMfileName=outFileNamePrefix + "Aligned.toTranscriptome.out.bam";
                     };

@@ -103,7 +103,7 @@ void Genome::genomeGenerate() {
 	{//move Log.out file into genome directory
 		string logfn=pGe.gDir+"Log.out";
 #if defined(_WIN32)
-		//Windows cannot rename a file that is still open; close the log, move it,
+		// STAR-crossplatform: Windows cannot rename a file that is still open; close the log, move it,
 		//then reopen (append) so subsequent logging continues into the moved file.
 		P.inOut->logMain.flush();
 		P.inOut->logMain.close();

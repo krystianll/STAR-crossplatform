@@ -7,7 +7,7 @@ void Parameters::readSAMheader(const string readFilesCommandString, const vector
 
     if (readFilesCommandString=="") {//simply read from file
 #ifdef STAR_GZ_INPUT
-        // openMulti emits FILE markers before headers; inspect each member
+        // STAR-crossplatform: openMulti emits FILE markers before headers; inspect each member
         // separately so RG/PG/CO lines survive native plain/gzip concatenation.
         for (const auto &name : readFilesNames) {
             GzIfstream header(name.c_str());

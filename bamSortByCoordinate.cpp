@@ -8,7 +8,7 @@
 void bamSortByCoordinate (Parameters &P, ReadAlignChunk **RAchunk, Genome &genome, Solo &solo) {
     if (P.outBAMcoord) {//sort BAM if needed
 #if defined(_WIN32)
-        // Mapping has flushed the bins. Close writers before sorting reads and
+        // STAR-crossplatform: Mapping has flushed the bins. Close writers before sorting reads and
         // removes them, so Windows releases consumed bins immediately too.
         for (int it=0; it<P.runThreadN; it++)
             RAchunk[it]->chunkOutBAMcoord->closeBins();

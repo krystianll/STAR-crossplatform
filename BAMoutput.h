@@ -13,7 +13,7 @@ public:
     void coordBins ();
     void coordFlush ();
 #if defined(_WIN32)
-    void closeBins ();//Windows: close per-bin temp write streams so they can be deleted
+    void closeBins ();// STAR-crossplatform: Windows: close per-bin temp write streams so they can be deleted
 #endif
     //unsorted output
     BAMoutput (BGZF *bgzfBAMin, Parameters &Pin);

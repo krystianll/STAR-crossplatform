@@ -45,7 +45,7 @@ void SoloFeature::outputResults(bool cellFilterYes, string outputPrefixMat)
         case SoloFeatureTypes::SJ :
             string sjout; //full path to SJ.out.tab with user-defined prefix
             if (P.outFileNamePrefix[0]=='/'
-#if defined(_WIN32)
+#if defined(_WIN32) // STAR-crossplatform: backslash and drive-letter absolute prefixes
                 || P.outFileNamePrefix[0]=='\\'
                 || (P.outFileNamePrefix.size()>2 && P.outFileNamePrefix[1]==':')
 #endif

@@ -4,7 +4,7 @@
 
 #include "SharedMemory.h"
 #include <sstream>
-#if !defined(_WIN32)
+#if !defined(_WIN32) // STAR-crossplatform: no SysV/POSIX shared-memory headers on Windows
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <semaphore.h>
@@ -23,7 +23,7 @@ using namespace std;
 
 #if defined(_WIN32)
 // --------------------------------------------------------------------------
-// Windows stub: STAR's SysV/POSIX shared-memory genome sharing is unavailable
+// STAR-crossplatform: Windows stub: STAR's SysV/POSIX shared-memory genome sharing is unavailable
 // on native Windows (no shmget/shmat/mmap-SHM). These definitions let STAR
 // compile and run normally with the default --genomeLoad NoSharedMemory, which
 // never constructs SharedMemory. The shared modes (LoadAndKeep / LoadAndExit /

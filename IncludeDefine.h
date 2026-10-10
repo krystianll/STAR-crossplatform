@@ -13,7 +13,7 @@
 #include <iomanip>
 #include <vector>
 #include <sys/types.h>
-#if !defined(_WIN32)
+#if !defined(_WIN32) // STAR-crossplatform: no SysV IPC / mmap headers on Windows
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
@@ -24,7 +24,7 @@
 #include <limits>
 #include <stdint.h>
 #include <omp.h>
-#include <pthread.h>
+#include <pthread.h> // STAR-crossplatform: explicit include needed by MinGW
 #include <math.h>
 #include <assert.h>
 
@@ -48,7 +48,7 @@ using namespace std;
 #endif
 
 #if defined(_WIN32)
-// ---- Native-Windows (MinGW) POSIX shims for STAR --------------------------
+// STAR-crossplatform: ---- Native-Windows (MinGW) POSIX shims for STAR --------------------------
 // STAR targets POSIX; these let it compile and run on native Windows. Features
 // that fundamentally need POSIX IPC (SysV shared-memory genome, named-pipe
 // --readFilesCommand) fail cleanly at runtime; the default paths do not use them.

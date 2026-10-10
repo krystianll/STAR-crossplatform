@@ -9,7 +9,7 @@
 #if defined(_WIN32)
 static void closeWindowsFirstPassStreams(Parameters &P1, ReadAlignChunk **RAchunk1)
 {
-    // These streams can be opened by BySJout even though stage 1 is disabled here.
+    // STAR-crossplatform: These streams can be opened by BySJout even though stage 1 is disabled here.
     for (int it=0; it<P1.runThreadN; ++it)
         for (uint im=0; im<P1.readNends; ++im)
             RAchunk1[it]->RA->chunkOutFilterBySJoutFiles[im].close();
@@ -83,6 +83,7 @@ void twoPassRunPass1(Parameters &P, Genome &genomeMain, Transcriptome *transcrip
     mapThreadsSpawn(P1, RAchunk1);
     outputSJ(RAchunk1,P1); //collapse and output junctions
 #if defined(_WIN32)
+    // STAR-crossplatform: close first-pass temp streams so Windows can delete them
     closeWindowsFirstPassStreams(P1, RAchunk1);
 #endif
 //         for (int ii=0;ii<P1.runThreadN;ii++) {

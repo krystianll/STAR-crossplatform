@@ -230,6 +230,10 @@ path is needed to build or run the fixes. The existing compiler, htslib, zlib,
 and other dependencies in the build recipes are still required; source
 self-containment does not mean every resulting executable is statically linked.
 
+Every edit to an upstream file is marked with a `STAR-crossplatform:` comment, so
+`grep -rn "STAR-crossplatform:" --include='*.cpp' --include='*.h' --include=Makefile .`
+lists them.
+
 Prefer compatibility headers or small helpers after the includes at the top of
 a `.cpp` file, guarded by `_WIN32`. Keep edits inside upstream functions to the
 smallest necessary call, condition, or assignment. Current locations:

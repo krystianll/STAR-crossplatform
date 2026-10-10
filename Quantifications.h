@@ -3,7 +3,7 @@
 #include "IncludeDefine.h"
 
 #if defined(_WIN32)
-#define uintQ unsigned long long // Windows LLP64: long is only 32 bits.
+#define uintQ unsigned long long // STAR-crossplatform: Windows LLP64: long is only 32 bits.
 #else
 #define uintQ unsigned long
 #endif

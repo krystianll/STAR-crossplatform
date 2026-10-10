@@ -6,7 +6,7 @@ void Parameters::closeReadsFiles() {
     for (uint imate=0; imate<readFilesIn.size(); imate++) {//open readIn files
         if ( inOut->readIn[imate].is_open() )
             inOut->readIn[imate].close();
-#if !defined(_WIN32)
+#if !defined(_WIN32) // STAR-crossplatform: no POSIX kill/SIGKILL on Windows
         if (readFilesCommandPID[imate]>0)
             kill(readFilesCommandPID[imate],SIGKILL);
 #endif

@@ -13,7 +13,7 @@
 #include <iostream>
 
 #if defined(_WIN32)
-typedef int key_t;   // MinGW has no SysV <sys/types.h> key_t
+typedef int key_t;   // STAR-crossplatform: MinGW has no SysV <sys/types.h> key_t
 #endif
 
 enum ErrorState {

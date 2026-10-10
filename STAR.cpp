@@ -1,6 +1,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined(_WIN32)
+#if defined(_WIN32) // STAR-crossplatform: CRT headers for binary mode
 #include <stdio.h>   // _fmode
 #include <fcntl.h>   // _O_BINARY
 #include <io.h>      // _setmode, _fileno
@@ -39,7 +39,7 @@
 #include "parametersDefault.xxd"
 
 #if defined(_WIN32)
-// Windows compatibility is kept here; main only calls this at the cleanup point.
+// STAR-crossplatform: Windows compatibility is kept here; main only calls this at the cleanup point.
 static void closeWindowsTemporaryStreams(Parameters &P, ReadAlignChunk **RAchunk, Solo &soloMain)
 {
     // POSIX can unlink open temp files; Windows requires closing each handle.
@@ -88,7 +88,7 @@ void usage(int usageType)
 int main(int argInN, char *argIn[])
 {
 #if defined(_WIN32)
-    // UCRT defaults to 512 stdio streams; BAM sorting opens bins per thread.
+    // STAR-crossplatform: UCRT defaults to 512 stdio streams; BAM sorting opens bins per thread.
     if (_setmaxstdio(8192) == -1) {
         std::cerr << "EXITING: could not raise the Windows CRT stream limit\n";
         return 1;
@@ -344,6 +344,7 @@ int main(int argInN, char *argIn[])
     if (P.outTmpKeep == "None")
     {
 #if defined(_WIN32)
+        // STAR-crossplatform: close temp streams so Windows can delete the files
         closeWindowsTemporaryStreams(P, RAchunk, soloMain);
 #endif
         sysRemoveDir(P.outFileTmp);

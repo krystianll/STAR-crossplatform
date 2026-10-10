@@ -4,7 +4,7 @@
 #include "SequenceFuns.h"
 #include "GlobalVariables.h"
 
-inline uint64 fastqReadOneLine(istream &streamIn, char *arrIn);
+inline uint64 fastqReadOneLine(istream &streamIn, char *arrIn); // STAR-crossplatform: istream (not ifstream) so GzIfstream can be read
 inline void removeStringEndControl(string &str);
 
 
@@ -118,7 +118,7 @@ void ReadAlignChunk::processChunks() {//read-map-write chunks
                         };
                         //read the second field of the read name line
                         char passFilterIllumina='N';
-                        if (P.inOut->readIn[0].peek()!='\n' && P.inOut->readIn[0].peek()!='\r') {//2nd field exists (LF or CRLF)
+                        if (P.inOut->readIn[0].peek()!='\n' && P.inOut->readIn[0].peek()!='\r') {// STAR-crossplatform: upstream bug fix, 2nd field exists (LF or CRLF)
                             string field2;
                             P.inOut->readIn[0] >> field2;
                             if (field2.length()>=3 && field2[1]==':' && field2[2]=='Y' && field2[3]==':' )
@@ -280,7 +280,7 @@ void ReadAlignChunk::processChunks() {//read-map-write chunks
     if (P.runThreadN>1) pthread_mutex_unlock(&g_threadChunks.mutexLogMain);
 };
 
-inline uint64 fastqReadOneLine(istream &streamIn, char *arrIn)
+inline uint64 fastqReadOneLine(istream &streamIn, char *arrIn) // STAR-crossplatform: istream (not ifstream) so GzIfstream can be read
 {
     uint64 lenIn;
     streamIn.getline(arrIn, DEF_readNameSeqLengthMax+1 );

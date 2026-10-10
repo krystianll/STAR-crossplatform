@@ -17,7 +17,7 @@ LDFLAGS_static := -static -static-libgcc -pthread -Lhtslib -lhts -lz
 LDFLAGS_Mac :=-pthread -lz htslib/libhts.a
 LDFLAGS_Mac_static :=-pthread -lz -static-libgcc htslib/libhts.a
 LDFLAGS_gdb := $(LDFLAGS_shared)
-# native read input (-DSTAR_GZ_INPUT, GzIfstream.h) also decompresses bzip2
+# STAR-crossplatform: native read input (-DSTAR_GZ_INPUT, GzIfstream.h) also decompresses bzip2
 LDFLAGS_GZ = $(if $(findstring STAR_GZ_INPUT,$(CXXFLAGSextra) $(CXXFLAGS)),-lbz2)
 
 DATE_FMT = --iso-8601=seconds
@@ -27,7 +27,7 @@ else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
 
-# Build provenance printed in Log.out. For distributed binaries, override both
+# STAR-crossplatform: Build provenance printed in Log.out. For distributed binaries, override both
 # on the make command line, e.g. make BUILD_PLACE=release BUILD_GIT_INFO=
 # (an empty BUILD_GIT_INFO blanks the embedded git status/diff text).
 BUILD_PLACE ?= $(HOSTNAME):$(shell pwd)
@@ -139,6 +139,7 @@ ifneq ($(MAKECMDGOALS),CLEAN)
 ifneq ($(MAKECMDGOALS),clean_solo)
 ifneq ($(MAKECMDGOALS),STARforMac)
 ifneq ($(MAKECMDGOALS),STARforMacGDB)
+# STAR-crossplatform: dependency scan sees user preprocessor flags (conditional GzIfstream.h) and Makefile changes
 Depend.list: $(SOURCES) parametersDefault.xxd htslib Makefile
 	echo $(SOURCES)
 	'rm' -f ./Depend.list
@@ -160,6 +161,7 @@ parametersDefault.xxd: parametersDefault
 	xxd -i parametersDefault > parametersDefault.xxd
 
 STAR$(SFX) : CXXFLAGS := $(CXXFLAGSextra) $(CXXFLAGS_main) $(CXXFLAGS)
+# STAR-crossplatform: every target's LDFLAGS below also carries $(LDFLAGS_GZ)
 STAR$(SFX) : LDFLAGS := $(LDFLAGSextra) $(LDFLAGS_shared) $(LDFLAGS_GZ) $(LDFLAGS)
 STAR$(SFX) : Depend.list parametersDefault.xxd $(OBJECTS)
 	$(CXX) -o STAR$(SFX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS)
