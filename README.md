@@ -268,6 +268,16 @@ outside the validated scope.
 
 ---
 
+## Related work
+
+[win-ngs](https://github.com/win-ngs) publishes community Windows builds of
+several NGS tools, including
+[star-windows-build](https://github.com/win-ngs/star-windows-build), which
+builds STAR in the MSYS2 MSYS environment (on its POSIX emulation layer,
+x64 only). This tree was developed independently and shares no code with it:
+it builds natively with MinGW for x64 and ARM64, with the source patches
+listed above.
+
 ## Redistribution & licensing
 
 The recipes above produce a **static** binary intended for personal use.
