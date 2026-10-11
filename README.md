@@ -151,6 +151,16 @@ mingw32-make STAR CXXFLAGS_SIMD= CC=clang CXX=clang++ CXXFLAGSextra="-DSTAR_GZ_I
 
 On Windows, `libsystre`/`gettext`/`libiconv` supply the POSIX regex chain htslib's
 `hts_expr.c` needs, and `-lws2_32` is Winsock (used by htslib's file layer).
+
+Two Windows pitfalls:
+
+- **Leave `CXXFLAGS_SIMD` empty on ARM64** (opal's bundled SIMDe maps AVX2 to
+  NEON). Do not pass `CXXFLAGS_SIMD="sse"`: it becomes a bare `sse` token that the
+  compiler takes for an input file (`opal.cpp: sse: linker input file not found`).
+- **Why `LDFLAGS_shared` is overridden:** the Makefile's default
+  (`-Lhtslib -Bstatic -lhts -Bdynamic -lz`) uses GNU-ld `-Bstatic`/`-Bdynamic`,
+  which clang reads as `-B` search paths; the recipes above name
+  `htslib/libhts.a` and the full link chain directly instead.
 `parametersDefault.xxd` is committed, so no `xxd` is required.
 
 ### Verify (any platform)

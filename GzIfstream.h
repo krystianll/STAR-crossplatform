@@ -9,7 +9,7 @@
 // header (recognised by its bytes, not its name). Sequential
 // only (STAR reads read-files sequentially; it never seeks them). Lets the
 // default input path handle plain, .gz OR .bz2 FASTQ on every platform, streaming,
-// with no temp file and no external process. See WINDOWS_BUILD.md §12.
+// with no temp file and no external process. See README.md (Patches).
 //
 // Also concatenates a *list* of files (STAR's comma-separated --readFilesIn),
 // decompressing each in turn. This is done here (not via an external "cat" into
