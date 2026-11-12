@@ -200,6 +200,7 @@ for resource limits, UNC paths, and additional file-lifetime checks.
 | File | Change | Reason |
 |------|--------|--------|
 | `htslib/` | Replaced STAR's legacy bundled htslib with **htslib 1.24** | The old bundle (unconditional `<sys/socket.h>`, `knetfile.c`) does not build on Windows; modern htslib is Windows-aware. |
+| `htslib/cram/cram_io.c`, `htslib/cram/open_trace_file.c` | `#if defined(_WIN32)`: `PATH_MAX` 4096 instead of MinGW's 260 | With Windows long paths on, CRAM reference FASTA and `.fai` paths of 260 characters or more were cut off (`samtools view -T` failed), and `open_path()` copied a long CRAM path into a 260-byte buffer. Every `PATH_MAX` buffer involved is local to these files. |
 | `IncludeDefine.h` | Guard `<sys/ipc.h>` / `<sys/shm.h>` / `<sys/mman.h>` under `#if !defined(_WIN32)` | Those SysV/mmap headers do not exist in the Windows/MinGW toolchain. |
 | `IncludeDefine.h` | Add `#include <pthread.h>` | STAR uses `pthread_mutex_t`; MinGW needs the explicit include (arrives transitively only on Linux). |
 | `IncludeDefine.h` | `#if defined(_WIN32)` shim block: 2-arg `mkdir` overload; `mkfifo`/`symlink`/`statvfs` via `_mkdir`/`CopyFileA`/`GetDiskFreeSpaceExA` (querying the requested file's volume; Win32 prototypes declared directly, avoiding `<windows.h>`) | MinGW's `mkdir` is 1-arg; `mkfifo`/`symlink`/`statvfs` are POSIX-only; `<windows.h>` `min`/`max` macros collide with STAR/libc++. |

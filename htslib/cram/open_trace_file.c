@@ -78,6 +78,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  define PATH_MAX 1024
 #endif
 
+#if defined(_WIN32)
+/* STAR-crossplatform: MinGW's PATH_MAX is MAX_PATH (260), too short for a
+ * CRAM file path that Windows long paths allow: open_path() strcpy()s it into
+ * a PATH_MAX buffer. Use Linux's 4096. Local to this file. */
+#undef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #include "open_trace_file.h"
 #include "misc.h"
 #include "../htslib/hfile.h"
